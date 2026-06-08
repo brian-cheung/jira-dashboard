@@ -46,14 +46,14 @@ function initCache() {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       last_sync TEXT,
       custom_field_tester TEXT,
-      custom_field_requested_by TEXT
+      custom_field_requested_by TEXT,
+      custom_field_start_date TEXT,
+      custom_field_sprint TEXT
     );
   `);
 
   // Ensure the singleton row exists
-  db.exec(`
-    INSERT OR IGNORE INTO sync_log (id, last_sync) VALUES (1, NULL);
-  `);
+  db.exec(`INSERT OR IGNORE INTO sync_log (id, last_sync) VALUES (1, NULL);`);
 
   return db;
 }
@@ -77,23 +77,40 @@ function safeStr(val) {
   return String(val);
 }
 
-function upsertIssue(issue, customFieldTester, customFieldRequestedBy) {
+function upsertIssue(
+  issue,
+  customFieldTester,
+  customFieldRequestedBy,
+  customFieldStartDate,
+  customFieldSprint
+) {
   const db = getDb();
   const fields = issue.fields || {};
 
   const epicKey = fields.epic ? fields.epic.key : null;
   const parentKey = fields.parent ? fields.parent.key : null;
-  const fixVersions = Array.isArray(fields.fixVersions) ? fields.fixVersions.map(v => v.name).join(', ') : '';
+  const fixVersions = Array.isArray(fields.fixVersions)
+    ? fields.fixVersions.map(v => v.name).join(', ')
+    : '';
 
-  // sprint can be a single object {name: "Sprint 1"} or an array of sprints
+  // Sprint from custom field (array type)
   let sprintName = '';
-  if (fields.sprint) {
-    if (Array.isArray(fields.sprint)) {
-      const active = fields.sprint.filter(s => s.state === 'active');
-      sprintName = active.length > 0 ? active.map(s => s.name).join(', ') : fields.sprint.map(s => s.name).join(', ');
-    } else if (fields.sprint.name) {
-      sprintName = fields.sprint.name;
+  if (customFieldSprint) {
+    const sprintVal = fields[customFieldSprint];
+    if (Array.isArray(sprintVal)) {
+      const active = sprintVal.filter(s => s.state === 'active');
+      sprintName = active.length > 0
+        ? active.map(s => s.name).join(', ')
+        : sprintVal.map(s => s.name).join(', ');
+    } else if (sprintVal && sprintVal.name) {
+      sprintName = sprintVal.name;
     }
+  }
+
+  // Start date from discovered custom field
+  let startDate = null;
+  if (customFieldStartDate && fields[customFieldStartDate]) {
+    startDate = fields[customFieldStartDate];
   }
 
   const testerVal = customFieldTester ? fields[customFieldTester] : null;
@@ -105,7 +122,6 @@ function upsertIssue(issue, customFieldTester, customFieldRequestedBy) {
   const assignee = fields.assignee || {};
   const reporter = fields.reporter || {};
 
-  // description may be ADF object (from search) or HTML string (from getIssue with renderedFields)
   let desc = '';
   if (fields.renderedFields && typeof fields.renderedFields.description === 'string') {
     desc = fields.renderedFields.description;
@@ -137,7 +153,7 @@ function upsertIssue(issue, customFieldTester, customFieldRequestedBy) {
     epicKey,
     parentKey,
     issueType: fields.issuetype ? safeStr(fields.issuetype.name) : '',
-    startDate: fields.customfield_10015 || null,
+    startDate,
     dueDate: fields.duedate || null,
     description: desc,
     fixVersions,
@@ -157,8 +173,8 @@ function upsertComment(issueKey, comment) {
   `).run(
     comment.id,
     issueKey,
-    comment.author ? comment.author.displayName : '',
-    comment.body || '',
+    safeStr(comment.author),
+    safeStr(comment.body),
     comment.created || ''
   );
 }
@@ -181,10 +197,23 @@ function getSyncLog() {
   return db.prepare('SELECT * FROM sync_log WHERE id = 1').get();
 }
 
-function updateSyncLog(lastSync, customFieldTester, customFieldRequestedBy) {
+function updateSyncLog(lastSync, testerField, requestedByField, startDateField, sprintField) {
   const db = getDb();
-  db.prepare('UPDATE sync_log SET last_sync = ?, custom_field_tester = ?, custom_field_requested_by = ? WHERE id = 1')
-    .run(lastSync || null, customFieldTester || null, customFieldRequestedBy || null);
+  db.prepare(`
+    UPDATE sync_log SET
+      last_sync = ?,
+      custom_field_tester = ?,
+      custom_field_requested_by = ?,
+      custom_field_start_date = ?,
+      custom_field_sprint = ?
+    WHERE id = 1
+  `).run(
+    lastSync || null,
+    testerField || null,
+    requestedByField || null,
+    startDateField || null,
+    sprintField || null
+  );
 }
 
 function updateIssueLocal(key, fields) {

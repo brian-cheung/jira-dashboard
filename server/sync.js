@@ -26,6 +26,20 @@ function buildMyTasksJql(accountId, testerFieldId) {
   return `(${clauses.join(' OR ')}) ORDER BY updated DESC`;
 }
 
+function discoverFields(customFields) {
+  const tester = customFields.find(f => f.name.toLowerCase() === 'tester');
+  const requestedBy = customFields.find(f => f.name.toLowerCase() === 'requested by');
+  const startDate = customFields.find(f => f.name.toLowerCase() === 'start date');
+  const sprint = customFields.find(f => f.name.toLowerCase() === 'sprint');
+
+  return {
+    tester: tester ? tester.key : null,
+    requestedBy: requestedBy ? requestedBy.key : null,
+    startDate: startDate ? startDate.key : null,
+    sprint: sprint ? sprint.key : null
+  };
+}
+
 async function fullSync(io) {
   console.log('Starting full sync...');
 
@@ -35,27 +49,23 @@ async function fullSync(io) {
   console.log(`Authenticated as: ${user.displayName} (${currentUserAccountId})`);
 
   const customFields = await getCustomFields();
-  const testerField = customFields.find(f => f.name.toLowerCase() === 'tester');
-  const requestedByField = customFields.find(f => f.name.toLowerCase() === 'requested by');
+  const fields = discoverFields(customFields);
 
-  const testerFieldKey = testerField ? testerField.key : null;
-  const requestedByFieldKey = requestedByField ? requestedByField.key : null;
+  console.log('Discovered custom fields:', {
+    tester: fields.tester,
+    requestedBy: fields.requestedBy,
+    startDate: fields.startDate,
+    sprint: fields.sprint
+  });
 
-  if (!testerField) {
-    console.log('No custom "Tester" field found — will search by Assignee + Reporter only.');
-  }
-  if (!requestedByField) {
-    console.log('No custom "Requested by" field found.');
-  }
-
-  const jql = buildMyTasksJql(currentUserAccountId, testerFieldKey);
+  const jql = buildMyTasksJql(currentUserAccountId, fields.tester);
   console.log('JQL:', jql);
 
   const issues = await searchIssuesAll(jql);
   console.log(`Fetched ${issues.length} issues from JIRA`);
 
   for (const issue of issues) {
-    upsertIssue(issue, testerFieldKey, requestedByFieldKey);
+    upsertIssue(issue, fields.tester, fields.requestedBy, fields.startDate, fields.sprint);
   }
 
   // Fetch comments for each issue
@@ -71,7 +81,7 @@ async function fullSync(io) {
   }
 
   const now = new Date().toISOString();
-  updateSyncLog(now, testerFieldKey, requestedByFieldKey);
+  updateSyncLog(now, fields.tester, fields.requestedBy, fields.startDate, fields.sprint);
 
   console.log('Full sync complete.');
 
@@ -82,7 +92,7 @@ async function fullSync(io) {
 
 async function incrementalSync(io) {
   const log = getSyncLog();
-  if (!log.last_sync) {
+  if (!log || !log.last_sync) {
     return fullSync(io);
   }
 
@@ -95,17 +105,21 @@ async function incrementalSync(io) {
 
   const changedKeys = [];
   for (const issue of issues) {
-    upsertIssue(issue, log.custom_field_tester, log.custom_field_requested_by);
+    upsertIssue(issue, log.custom_field_tester, log.custom_field_requested_by, log.custom_field_start_date, log.custom_field_sprint);
     changedKeys.push(issue.key);
 
-    const comments = await getComments(issue.key);
-    for (const c of comments) {
-      upsertComment(issue.key, c);
+    try {
+      const comments = await getComments(issue.key);
+      for (const c of comments) {
+        upsertComment(issue.key, c);
+      }
+    } catch (e) {
+      console.error(`Failed to fetch comments for ${issue.key}:`, e.message);
     }
   }
 
   const now = new Date().toISOString();
-  updateSyncLog(now, log.custom_field_tester, log.custom_field_requested_by);
+  updateSyncLog(now, log.custom_field_tester, log.custom_field_requested_by, log.custom_field_start_date, log.custom_field_sprint);
 
   if (io && changedKeys.length > 0) {
     io.emit('sync:updated', { keys: changedKeys, lastSync: now });
