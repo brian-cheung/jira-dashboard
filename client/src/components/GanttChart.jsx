@@ -2,24 +2,33 @@ import { useEffect, useRef } from 'react';
 import Gantt from 'frappe-gantt';
 import './GanttChart.css';
 
-function mapIssuesToGanttTasks(issues) {
-  return issues.map(issue => {
-    const start = issue.start_date || issue.due_date || new Date().toISOString().split('T')[0];
-    const end = issue.due_date || start;
-    const progress = issue.status_category === 'Done' ? 100
-      : issue.status_category === 'In Progress' ? 50
-      : 0;
+function isValidDate(str) {
+  if (!str) return false;
+  return /^\d{4}-\d{2}-\d{2}/.test(str);
+}
 
-    return {
-      id: issue.key,
-      name: `${issue.key}: ${issue.summary}`,
-      start: start.split('T')[0],
-      end: end.split('T')[0],
-      progress,
-      dependencies: '',
-      custom_class: `gantt-status-${(issue.status || '').replace(/\s+/g, '-').toLowerCase()}`
-    };
-  });
+function mapIssuesToGanttTasks(issues) {
+  return issues
+    .filter(i => isValidDate(i.start_date) || isValidDate(i.due_date))
+    .map(issue => {
+      const start = isValidDate(issue.start_date) ? issue.start_date.split('T')[0]
+        : isValidDate(issue.due_date) ? issue.due_date.split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      const end = isValidDate(issue.due_date) ? issue.due_date.split('T')[0] : start;
+      const progress = issue.status_category === 'Done' ? 100
+        : issue.status_category === 'In Progress' ? 50
+        : 0;
+
+      return {
+        id: issue.key,
+        name: `${issue.key}: ${issue.summary}`,
+        start,
+        end,
+        progress,
+        dependencies: '',
+        custom_class: `gantt-status-${(issue.status || '').replace(/\s+/g, '-').toLowerCase()}`
+      };
+    });
 }
 
 export default function GanttChart({ issues, onSelectIssue, selectedKey }) {
@@ -79,5 +88,15 @@ export default function GanttChart({ issues, onSelectIssue, selectedKey }) {
     return <div className="gantt-empty">Loading tasks... Sync in progress.</div>;
   }
 
-  return <div ref={containerRef} className="gantt-container" />;
+  const dated = issues.filter(i => isValidDate(i.start_date) || isValidDate(i.due_date));
+  if (dated.length === 0) {
+    return <div className="gantt-empty">No tasks with start/due dates. {issues.length} tasks in the tree.</div>;
+  }
+
+  return (
+    <div className="gantt-wrapper">
+      <div className="gantt-info">{dated.length} tasks with dates shown ({(issues.length - dated.length)} unscheduled)</div>
+      <div ref={containerRef} className="gantt-container" />
+    </div>
+  );
 }
