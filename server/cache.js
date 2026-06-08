@@ -63,19 +63,57 @@ function getDb() {
   return db;
 }
 
+function safeStr(val) {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (typeof val === 'object') {
+    if (val.displayName) return val.displayName;
+    if (val.name) return val.name;
+    if (val.value) return String(val.value);
+    if (Array.isArray(val)) return val.map(v => safeStr(v)).filter(Boolean).join(', ');
+    return JSON.stringify(val);
+  }
+  return String(val);
+}
+
 function upsertIssue(issue, customFieldTester, customFieldRequestedBy) {
   const db = getDb();
   const fields = issue.fields || {};
 
   const epicKey = fields.epic ? fields.epic.key : null;
   const parentKey = fields.parent ? fields.parent.key : null;
-  const fixVersions = (fields.fixVersions || []).map(v => v.name).join(', ');
-  const sprint = fields.sprint ? fields.sprint.name : null;
-  const testerName = customFieldTester ? (fields[customFieldTester] ? fields[customFieldTester].displayName || fields[customFieldTester].name || fields[customFieldTester] : null) : null;
-  const requestedBy = customFieldRequestedBy ? (fields[customFieldRequestedBy] ? fields[customFieldRequestedBy].displayName || fields[customFieldRequestedBy].name || fields[customFieldRequestedBy] : null) : null;
+  const fixVersions = Array.isArray(fields.fixVersions) ? fields.fixVersions.map(v => v.name).join(', ') : '';
+
+  // sprint can be a single object {name: "Sprint 1"} or an array of sprints
+  let sprintName = '';
+  if (fields.sprint) {
+    if (Array.isArray(fields.sprint)) {
+      const active = fields.sprint.filter(s => s.state === 'active');
+      sprintName = active.length > 0 ? active.map(s => s.name).join(', ') : fields.sprint.map(s => s.name).join(', ');
+    } else if (fields.sprint.name) {
+      sprintName = fields.sprint.name;
+    }
+  }
+
+  const testerVal = customFieldTester ? fields[customFieldTester] : null;
+  const testerName = safeStr(testerVal);
+
+  const requestedByVal = customFieldRequestedBy ? fields[customFieldRequestedBy] : null;
+  const requestedByName = safeStr(requestedByVal);
 
   const assignee = fields.assignee || {};
   const reporter = fields.reporter || {};
+
+  // description may be ADF object (from search) or HTML string (from getIssue with renderedFields)
+  let desc = '';
+  if (fields.renderedFields && typeof fields.renderedFields.description === 'string') {
+    desc = fields.renderedFields.description;
+  } else if (typeof fields.description === 'string') {
+    desc = fields.description;
+  } else if (fields.description && typeof fields.description === 'object') {
+    desc = JSON.stringify(fields.description);
+  }
 
   db.prepare(`
     INSERT OR REPLACE INTO issues
@@ -89,23 +127,23 @@ function upsertIssue(issue, customFieldTester, customFieldRequestedBy) {
   `).run({
     id: issue.id,
     key: issue.key,
-    summary: fields.summary || '',
-    status: fields.status ? fields.status.name : '',
-    statusCategory: fields.status ? fields.status.statusCategory.name : '',
-    assigneeName: assignee.displayName || '',
+    summary: safeStr(fields.summary),
+    status: fields.status ? safeStr(fields.status.name) : '',
+    statusCategory: fields.status && fields.status.statusCategory ? safeStr(fields.status.statusCategory.name) : '',
+    assigneeName: safeStr(assignee.displayName),
     assigneeAvatar: assignee.avatarUrls ? (assignee.avatarUrls['24x24'] || '') : '',
-    reporterName: reporter.displayName || '',
-    testerName: testerName || '',
+    reporterName: safeStr(reporter.displayName),
+    testerName,
     epicKey,
     parentKey,
-    issueType: fields.issuetype ? fields.issuetype.name : '',
+    issueType: fields.issuetype ? safeStr(fields.issuetype.name) : '',
     startDate: fields.customfield_10015 || null,
     dueDate: fields.duedate || null,
-    description: fields.renderedFields ? (fields.renderedFields.description || fields.description || '') : (fields.description || ''),
+    description: desc,
     fixVersions,
-    requestedBy: requestedBy || '',
-    sprint,
-    priority: fields.priority ? fields.priority.name : '',
+    requestedBy: requestedByName,
+    sprint: sprintName,
+    priority: fields.priority ? safeStr(fields.priority.name) : '',
     updated: fields.updated || null,
     rawJson: JSON.stringify(issue)
   });
