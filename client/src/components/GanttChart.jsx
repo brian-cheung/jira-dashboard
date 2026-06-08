@@ -11,10 +11,12 @@ function mapIssuesToGanttTasks(issues) {
   return issues
     .filter(i => isValidDate(i.start_date) || isValidDate(i.due_date))
     .map(issue => {
-      const start = isValidDate(issue.start_date) ? issue.start_date.split('T')[0]
+      let start = isValidDate(issue.start_date) ? issue.start_date.split('T')[0]
         : isValidDate(issue.due_date) ? issue.due_date.split('T')[0]
         : new Date().toISOString().split('T')[0];
-      const end = isValidDate(issue.due_date) ? issue.due_date.split('T')[0] : start;
+      let end = isValidDate(issue.due_date) ? issue.due_date.split('T')[0] : start;
+      // Swap if end is before start (data entry errors in JIRA)
+      if (end < start) [start, end] = [end, start];
       const progress = issue.status_category === 'Done' ? 100
         : issue.status_category === 'In Progress' ? 50
         : 0;
