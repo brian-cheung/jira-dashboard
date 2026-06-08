@@ -40,10 +40,10 @@ async function getCustomFields() {
   return fields.filter(f => f.custom);
 }
 
-async function searchIssues(jql, fields = '*all', startAt = 0, maxResults = 100) {
+async function searchIssues(jql, fields = ['*all'], startAt = 0, maxResults = 100) {
   const res = await jiraFetch('search', {
     method: 'POST',
-    body: JSON.stringify({ jql, fields, startAt, maxResults, expand: ['renderedFields'] })
+    body: JSON.stringify({ jql, fields, startAt, maxResults, expand: 'renderedFields' })
   });
   return res;
 }
@@ -54,7 +54,7 @@ async function searchIssuesAll(jql) {
   const maxResults = 100;
 
   while (true) {
-    const res = await searchIssues(jql, '*all', startAt, maxResults);
+    const res = await searchIssues(jql, ['*all'], startAt, maxResults);
     allIssues = allIssues.concat(res.issues);
     if (startAt + maxResults >= res.total) break;
     startAt += maxResults;
