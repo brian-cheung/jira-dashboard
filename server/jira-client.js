@@ -14,6 +14,8 @@ const headers = {
 
 async function jiraFetch(path, options = {}) {
   const url = `${JIRA_URL}/rest/api/3/${path}`;
+  const method = options.method || 'GET';
+  console.log(`JIRA ${method} ${path}`);
   const res = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
 
   if (res.status === 429) {
@@ -25,7 +27,9 @@ async function jiraFetch(path, options = {}) {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`JIRA API ${res.status}: ${body}`);
+    const msg = `JIRA API ${res.status} on ${method} ${path}: ${body}`;
+    console.error(msg);
+    throw new Error(msg);
   }
 
   return res.json();
@@ -40,24 +44,26 @@ async function getCustomFields() {
   return fields.filter(f => f.custom);
 }
 
-async function searchIssues(jql, fields = ['*all'], startAt = 0, maxResults = 100) {
-  const res = await jiraFetch('search', {
+async function searchIssues(jql, fields = ['*all'], maxResults = 100, nextPageToken = null) {
+  const body = { jql, fields, maxResults };
+  if (nextPageToken) body.nextPageToken = nextPageToken;
+  const res = await jiraFetch('search/jql', {
     method: 'POST',
-    body: JSON.stringify({ jql, fields, startAt, maxResults, expand: 'renderedFields' })
+    body: JSON.stringify(body)
   });
   return res;
 }
 
 async function searchIssuesAll(jql) {
   let allIssues = [];
-  let startAt = 0;
+  let nextPageToken = null;
   const maxResults = 100;
 
   while (true) {
-    const res = await searchIssues(jql, ['*all'], startAt, maxResults);
+    const res = await searchIssues(jql, ['*all'], maxResults, nextPageToken);
     allIssues = allIssues.concat(res.issues);
-    if (startAt + maxResults >= res.total) break;
-    startAt += maxResults;
+    if (res.isLast) break;
+    nextPageToken = res.nextPageToken;
   }
 
   return allIssues;
