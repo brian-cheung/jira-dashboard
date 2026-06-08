@@ -1,0 +1,26 @@
+.gantt-container {
+  height: 100%;
+  overflow: auto;
+}
+.gantt-container svg {
+  width: 100%;
+}
+.gantt-empty {
+  padding: 40px;
+  text-align: center;
+  color: #6B778C;
+  font-size: 14px;
+}
+.gantt-container .bar {
+  transition: filter 0.2s;
+}
+.gantt-container .bar:hover {
+  filter: brightness(0.9);
+}
+.gantt-popup {
+  padding: 8px;
+  font-size: 12px;
+}
+.gantt-popup p {
+  margin: 4px 0;
+}
