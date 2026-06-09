@@ -68,3 +68,16 @@
   border-color: #0052CC;
   color: #0052CC;
 }
+.filter-select {
+  padding: 5px 8px;
+  border: 1px solid #DFE1E6;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #172B4D;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+}
+.filter-select:focus {
+  border-color: #4C9AFF;
+}

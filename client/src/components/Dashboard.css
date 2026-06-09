@@ -71,7 +71,6 @@
   background: #DEEBFF !important;
 }
 .dash-row-epic {
-  background: #F4F5F7;
   font-weight: 600;
 }
 .dash-row-epic .dash-summary {
@@ -86,6 +85,14 @@
 .dash-key {
   white-space: nowrap;
 }
+.dash-expand {
+  display: inline-block;
+  width: 14px;
+  font-size: 9px;
+  color: #6B778C;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 .dash-key a {
   font-family: monospace;
   font-size: 11px;
@@ -94,10 +101,6 @@
 }
 .dash-key a:hover {
   text-decoration: underline;
-}
-.dash-tree-line {
-  color: #C1C7D0;
-  font-size: 9px;
 }
 .dash-summary {
   max-width: 300px;

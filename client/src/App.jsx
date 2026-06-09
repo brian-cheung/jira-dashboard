@@ -13,9 +13,9 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState({ lastSync: null });
   const [filters, setFilters] = useState({ assignee: true, reporter: true, tester: true });
   const [statusFilter, setStatusFilter] = useState({});
-  const [sprintFilter, setSprintFilter] = useState({});
-  const [typeFilter, setTypeFilter] = useState({});
-  const [priorityFilter, setPriorityFilter] = useState({});
+  const [sprintFilter, setSprintFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
   const [search, setSearch] = useState('');
   const addToast = useToast();
 

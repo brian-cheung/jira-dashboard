@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import StatusBadge from './StatusBadge';
+import { useState, useMemo, useCallback } from 'react';
+import StatusBadge, { getStatusColor } from './StatusBadge';
 import './Dashboard.css';
 
 const SORT_FIELDS = {
@@ -21,21 +21,22 @@ function buildTree(issues) {
   const roots = [];
 
   for (const issue of issues) {
-    map[issue.key] = { ...issue, children: [], depth: 0 };
+    map[issue.key] = { ...issue, children: [], depth: 0, parentKey: null };
   }
 
   for (const key in map) {
     const node = map[key];
     if (node.parent_key && map[node.parent_key]) {
       map[node.parent_key].children.push(node);
+      node.parentKey = node.parent_key;
     } else if (node.epic_key && map[node.epic_key]) {
       map[node.epic_key].children.push(node);
+      node.parentKey = node.epic_key;
     } else {
       roots.push(node);
     }
   }
 
-  // Assign depths
   function assignDepth(node, depth) {
     node.depth = depth;
     for (const child of node.children) {
@@ -46,28 +47,7 @@ function buildTree(issues) {
     assignDepth(root, 0);
   }
 
-  // Flatten in tree order
-  const flat = [];
-  function flatten(node) {
-    flat.push(node);
-    for (const child of node.children) {
-      flatten(child);
-    }
-  }
-  for (const root of roots) {
-    flatten(root);
-  }
-
-  return flat;
-}
-
-function matchesChipFilter(value, filter) {
-  const active = Object.entries(filter || {}).filter(([, v]) => v).map(([k]) => k);
-  if (active.length === 0) return true;
-  if (!value) return false;
-  // Sprint can be comma-separated
-  const values = value.split(', ');
-  return values.some(v => active.includes(v));
+  return { roots, map };
 }
 
 export default function Dashboard({
@@ -77,6 +57,7 @@ export default function Dashboard({
   const [sortField, setSortField] = useState('key');
   const [sortDir, setSortDir] = useState('asc');
   const [hierarchyView, setHierarchyView] = useState(true);
+  const [collapsed, setCollapsed] = useState({});
 
   const filtered = useMemo(() => {
     return issues.filter(i => {
@@ -93,28 +74,55 @@ export default function Dashboard({
       const activeStatuses = Object.entries(statusFilter || {}).filter(([, v]) => v).map(([k]) => k);
       const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(i.status);
 
-      const matchesSprint = matchesChipFilter(i.sprint, sprintFilter);
-      const matchesType = matchesChipFilter(i.issue_type, typeFilter);
-      const matchesPriority = matchesChipFilter(i.priority, priorityFilter);
+      const activeSprints = (sprintFilter || []).filter(Boolean);
+      const matchesSprint = activeSprints.length === 0 || (i.sprint && activeSprints.some(s => i.sprint.includes(s)));
+
+      const activeTypes = (typeFilter || []).filter(Boolean);
+      const matchesType = activeTypes.length === 0 || activeTypes.includes(i.issue_type);
+
+      const activePriorities = (priorityFilter || []).filter(Boolean);
+      const matchesPriority = activePriorities.length === 0 || activePriorities.includes(i.priority);
 
       return matchesSearch && matchesRole && matchesStatus && matchesSprint && matchesType && matchesPriority;
     });
   }, [issues, search, filters, statusFilter, sprintFilter, typeFilter, priorityFilter]);
 
   const displayList = useMemo(() => {
-    if (hierarchyView) {
-      return buildTree(filtered);
+    if (!hierarchyView) {
+      const arr = [...filtered];
+      arr.sort((a, b) => {
+        const aVal = (a[sortField] || '').toString().toLowerCase();
+        const bVal = (b[sortField] || '').toString().toLowerCase();
+        if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      return arr.map(i => ({ ...i, depth: 0, hasChildren: false, hidden: false }));
     }
-    const arr = [...filtered];
-    arr.sort((a, b) => {
-      const aVal = (a[sortField] || '').toString().toLowerCase();
-      const bVal = (b[sortField] || '').toString().toLowerCase();
-      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-    return arr.map(i => ({ ...i, depth: 0 }));
-  }, [filtered, hierarchyView, sortField, sortDir]);
+
+    const { roots, map } = buildTree(filtered);
+    const flat = [];
+    function flatten(node) {
+      flat.push(node);
+      if (!collapsed[node.key]) {
+        for (const child of node.children) {
+          flatten(child);
+        }
+      }
+    }
+    for (const root of roots) {
+      flatten(root);
+    }
+    return flat.map(n => ({
+      ...n,
+      hasChildren: n.children && n.children.length > 0,
+    }));
+  }, [filtered, hierarchyView, sortField, sortDir, collapsed]);
+
+  const toggleCollapse = useCallback((key, e) => {
+    e.stopPropagation();
+    setCollapsed(c => ({ ...c, [key]: !c[key] }));
+  }, []);
 
   function handleSort(field) {
     if (sortField === field) {
@@ -147,30 +155,36 @@ export default function Dashboard({
             </tr>
           </thead>
           <tbody>
-            {displayList.map(i => (
-              <tr
-                key={i.key}
-                className={`dash-row ${selectedKey === i.key ? 'dash-row-selected' : ''} ${i.issue_type === 'Epic' ? 'dash-row-epic' : ''}`}
-                onClick={() => onSelectIssue(i.key)}
-              >
-                <td className="dash-key" style={{ paddingLeft: i.depth * 16 + 10 }}>
-                  {i.depth > 0 && <span className="dash-tree-line">{'└ '.repeat(Math.min(i.depth, 3))}</span>}
-                  <a href={`https://executivecentre.atlassian.net/browse/${i.key}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                    {i.key}
-                  </a>
-                </td>
-                <td className="dash-summary">{i.summary}</td>
-                <td><StatusBadge status={i.status} /></td>
-                <td>{i.assignee_name || '-'}</td>
-                <td>{i.reporter_name || '-'}</td>
-                <td>{i.tester_name || '-'}</td>
-                <td className="dash-date">{i.due_date ? i.due_date.split('T')[0] : '-'}</td>
-                <td>{i.priority || '-'}</td>
-                <td>{i.issue_type || '-'}</td>
-                <td className="dash-sprint">{i.sprint || '-'}</td>
-                <td>{i.fix_versions || '-'}</td>
-              </tr>
-            ))}
+            {displayList.map(i => {
+              const statusColor = getStatusColor(i.status);
+              return (
+                <tr
+                  key={i.key}
+                  className={`dash-row ${selectedKey === i.key ? 'dash-row-selected' : ''} ${i.issue_type === 'Epic' ? 'dash-row-epic' : ''}`}
+                  style={{ borderLeft: `3px solid ${statusColor.border}` }}
+                  onClick={() => onSelectIssue(i.key)}
+                >
+                  <td className="dash-key" style={{ paddingLeft: i.depth * 16 + 8 }}>
+                    <span className="dash-expand" onClick={e => i.hasChildren && toggleCollapse(i.key, e)}>
+                      {i.hasChildren ? (collapsed[i.key] ? '▶' : '▼') : ''}
+                    </span>
+                    <a href={`https://executivecentre.atlassian.net/browse/${i.key}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                      {i.key}
+                    </a>
+                  </td>
+                  <td className="dash-summary">{i.summary}</td>
+                  <td><StatusBadge status={i.status} /></td>
+                  <td>{i.assignee_name || '-'}</td>
+                  <td>{i.reporter_name || '-'}</td>
+                  <td>{i.tester_name || '-'}</td>
+                  <td className="dash-date">{i.due_date ? i.due_date.split('T')[0] : '-'}</td>
+                  <td>{i.priority || '-'}</td>
+                  <td>{i.issue_type || '-'}</td>
+                  <td className="dash-sprint">{i.sprint || '-'}</td>
+                  <td>{i.fix_versions || '-'}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

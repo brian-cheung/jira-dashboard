@@ -21,6 +21,24 @@ function ChipGroup({ label, items, selected, onChange }) {
   );
 }
 
+function DropdownFilter({ label, items, selected, onChange }) {
+  return (
+    <div className="filter-section">
+      <label className="filter-section-label">{label}</label>
+      <select
+        className="filter-select"
+        value={selected}
+        onChange={e => onChange(e.target.value)}
+      >
+        <option value="">All</option>
+        {items.map(item => (
+          <option key={item} value={item}>{item}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function FilterBar({
   search, onSearchChange,
   filters, onFiltersChange,
@@ -76,9 +94,9 @@ export default function FilterBar({
       </div>
 
       <ChipGroup label="Status" items={statuses} selected={statusFilter} onChange={onStatusFilterChange} />
-      <ChipGroup label="Sprint" items={sprints} selected={sprintFilter} onChange={onSprintFilterChange} />
-      <ChipGroup label="Type" items={types} selected={typeFilter} onChange={onTypeFilterChange} />
-      <ChipGroup label="Priority" items={priorities} selected={priorityFilter} onChange={onPriorityFilterChange} />
+      <DropdownFilter label="Sprint" items={sprints} selected={sprintFilter} onChange={onSprintFilterChange} />
+      <DropdownFilter label="Type" items={types} selected={typeFilter} onChange={onTypeFilterChange} />
+      <DropdownFilter label="Priority" items={priorities} selected={priorityFilter} onChange={onPriorityFilterChange} />
     </div>
   );
 }
