@@ -501,12 +501,12 @@ export default function AppStatic() {
                       const sc = getStatusColor(s);
                       const active = statusFilter[s];
                       return (
-                        <label key={s} className={`filter-chip ${active ? 'active' : ''}`}
-                          style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text, fontWeight: 600, justifyContent: 'center' } : { justifyContent: 'center' }}
+                        <button key={s} className={`filter-chip ${active ? 'active' : ''}`}
+                          onClick={() => setStatusFilter({ ...statusFilter, [s]: !active })}
+                          style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text, fontWeight: 600 } : {}}
                         >
-                          <input type="checkbox" checked={active || false} onChange={e => setStatusFilter({ ...statusFilter, [s]: e.target.checked })} />
                           {s}
-                        </label>
+                        </button>
                       );
                     })}
                   </div>

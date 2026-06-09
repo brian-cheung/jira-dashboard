@@ -49,19 +49,18 @@
 .filter-chip {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 3px;
-  padding: 2px 7px;
+  padding: 4px 10px;
   border: 1px solid #DFE1E6;
   border-radius: 12px;
   font-size: 10px;
   color: #6B778C;
   cursor: pointer;
   transition: all 0.15s;
-}
-.filter-chip input {
-  margin: 0;
-  width: 10px;
-  height: 10px;
+  background: #fff;
+  font-family: inherit;
+  text-align: center;
 }
 .filter-chip.active {
   background: #DEEBFF;
