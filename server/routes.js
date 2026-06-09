@@ -15,6 +15,8 @@ const {
   getAllIssues,
   getIssueByKey,
   updateIssueLocal,
+  upsertIssue,
+  getSyncLog,
   getCustomJql,
   setCustomJql
 } = require('./cache');
@@ -47,6 +49,21 @@ router.post('/issues', async (req, res) => {
     }
 
     const result = await createIssue(fields);
+
+    // Fetch the full issue and cache it immediately
+    try {
+      const fullIssue = await getIssue(result.key);
+      const log = getSyncLog();
+      upsertIssue(
+        fullIssue,
+        log ? log.custom_field_tester : null,
+        log ? log.custom_field_requested_by : null,
+        log ? log.custom_field_start_date : null,
+        log ? log.custom_field_sprint : null
+      );
+    } catch (e) {
+      console.error('Failed to cache new issue:', e.message);
+    }
 
     const io = req.app.get('io');
     if (io) io.emit('sync:updated', { keys: [result.key], lastSync: new Date().toISOString() });
