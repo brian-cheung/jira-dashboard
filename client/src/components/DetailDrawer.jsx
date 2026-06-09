@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import StatusBadge from './StatusBadge';
 import { fetchIssue, updateIssue, fetchTransitions, addComment, uploadAttachment } from '../api';
 import { useToast } from './Toast';
+import { adfToHtml } from '../adf';
 import './DetailDrawer.css';
 
 export default function DetailDrawer({ issueKey, onClose }) {
@@ -12,6 +13,7 @@ export default function DetailDrawer({ issueKey, onClose }) {
   const [transitions, setTransitions] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
   const addToast = useToast();
 
   useEffect(() => {
@@ -85,7 +87,10 @@ export default function DetailDrawer({ issueKey, onClose }) {
       <div className="drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-header">
           <h2>{issueKey}</h2>
-          <button className="drawer-close" onClick={onClose}>×</button>
+          <div className="drawer-header-actions">
+            <a href={`https://executivecentre.atlassian.net/browse/${issueKey}`} target="_blank" rel="noopener noreferrer" className="drawer-jira-link">Open in JIRA ↗</a>
+            <button className="drawer-close" onClick={onClose}>×</button>
+          </div>
         </div>
 
         {loading ? (
@@ -117,12 +122,20 @@ export default function DetailDrawer({ issueKey, onClose }) {
             </div>
 
             <div className="drawer-field">
-              <label>Description</label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={6}
-              />
+              <label>Description
+                <button className="drawer-edit-toggle" onClick={() => setEditingDesc(!editingDesc)}>
+                  {editingDesc ? 'View' : 'Edit'}
+                </button>
+              </label>
+              {editingDesc ? (
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  rows={12}
+                />
+              ) : (
+                <div className="drawer-desc-rendered" dangerouslySetInnerHTML={{ __html: adfToHtml(description) || '<em>No description</em>' }} />
+              )}
             </div>
 
             <div className="drawer-meta">

@@ -43,7 +43,7 @@ function TreeNode({ node, depth, selectedKey, onSelect }) {
         <span className="tree-key">{node.key}</span>
         <span className="tree-summary">{node.summary}</span>
         <StatusBadge status={node.status} />
-        {node.sprint && <span className="tree-sprint-tag">{node.sprint}</span>}
+        <span className="tree-assignee">{node.assignee_name || ''}</span>
       </div>
       {expanded && hasChildren && node.children.map(child => (
         <TreeNode

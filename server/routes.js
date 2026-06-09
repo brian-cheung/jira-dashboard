@@ -3,6 +3,7 @@ const multer = require('multer');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 const {
+  getIssue,
   updateIssue,
   doTransition,
   getTransitions,
@@ -26,11 +27,27 @@ router.get('/issues', (req, res) => {
   }
 });
 
-// GET /api/issues/:key — single issue with comments
-router.get('/issues/:key', (req, res) => {
+// GET /api/issues/:key — single issue with comments (fetches live description from JIRA for rendered HTML)
+router.get('/issues/:key', async (req, res) => {
   try {
     const issue = getIssueByKey(req.params.key);
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
+
+    // Fetch live issue from JIRA to get rendered (HTML) description
+    try {
+      const live = await getIssue(req.params.key);
+      if (live && live.fields) {
+        const renderedDesc = (live.fields.renderedFields && live.fields.renderedFields.description)
+          || (typeof live.fields.description === 'string' ? live.fields.description : '');
+        if (renderedDesc) {
+          issue.description = renderedDesc;
+        }
+      }
+    } catch (e) {
+      // If JIRA fetch fails, keep cached description
+      console.error(`Failed to fetch live issue ${req.params.key}:`, e.message);
+    }
+
     res.json(issue);
   } catch (err) {
     res.status(500).json({ error: err.message });

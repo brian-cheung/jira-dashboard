@@ -56,13 +56,14 @@
   white-space: nowrap;
   color: #172B4D;
 }
-.tree-sprint-tag {
+.tree-assignee {
   font-size: 10px;
-  background: #EAE6FF;
-  color: #403294;
-  padding: 1px 6px;
-  border-radius: 3px;
+  color: #6B778C;
   flex-shrink: 0;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tree-empty {
   padding: 20px;
