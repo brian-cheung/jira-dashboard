@@ -7,6 +7,14 @@ import StatusBadge from './components/StatusBadge';
 import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
 import './App.css';
+import './components/FilterBar.css';
+import './components/Dashboard.css';
+import './components/DetailDrawer.css';
+import './components/HierarchyTree.css';
+import './components/MetricsDashboard.css';
+import './components/CreateIssueModal.css';
+import './components/Setup.css';
+import './components/Toast.css';
 
 // Simple toast inline (no socket)
 function useSimpleToast() {
