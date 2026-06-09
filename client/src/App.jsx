@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import HierarchyTree from './components/HierarchyTree';
 import Dashboard from './components/Dashboard';
 import DetailDrawer from './components/DetailDrawer';
 import FilterBar from './components/FilterBar';
@@ -14,6 +13,9 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState({ lastSync: null });
   const [filters, setFilters] = useState({ assignee: true, reporter: true, tester: true });
   const [statusFilter, setStatusFilter] = useState({});
+  const [sprintFilter, setSprintFilter] = useState({});
+  const [typeFilter, setTypeFilter] = useState({});
+  const [priorityFilter, setPriorityFilter] = useState({});
   const [search, setSearch] = useState('');
   const addToast = useToast();
 
@@ -91,13 +93,13 @@ export default function App() {
             onFiltersChange={setFilters}
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
+            sprintFilter={sprintFilter}
+            onSprintFilterChange={setSprintFilter}
+            typeFilter={typeFilter}
+            onTypeFilterChange={setTypeFilter}
+            priorityFilter={priorityFilter}
+            onPriorityFilterChange={setPriorityFilter}
             issues={issues}
-          />
-          <HierarchyTree
-            issues={issues}
-            filters={filters}
-            onSelectIssue={setSelectedKey}
-            selectedKey={selectedKey}
           />
         </div>
         <div className="app-content">
@@ -105,6 +107,9 @@ export default function App() {
             issues={issues}
             filters={filters}
             statusFilter={statusFilter}
+            sprintFilter={sprintFilter}
+            typeFilter={typeFilter}
+            priorityFilter={priorityFilter}
             search={search}
             onSelectIssue={setSelectedKey}
             selectedKey={selectedKey}

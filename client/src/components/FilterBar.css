@@ -1,38 +1,52 @@
 .filter-bar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding: 10px;
-  border-bottom: 1px solid #DFE1E6;
+  overflow-y: auto;
+  flex: 1;
 }
 .filter-search {
-  padding: 6px 10px;
+  padding: 7px 10px;
   border: 1px solid #DFE1E6;
   border-radius: 4px;
   font-size: 12px;
   outline: none;
+  flex-shrink: 0;
 }
 .filter-search:focus {
   border-color: #4C9AFF;
 }
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.filter-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6B778C;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 .filter-toggles {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 .filter-toggle {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   font-size: 11px;
   color: #42526E;
   cursor: pointer;
 }
-.filter-status {
+.filter-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
-.filter-status-chip {
+.filter-chip {
   display: flex;
   align-items: center;
   gap: 3px;
@@ -44,12 +58,12 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.filter-status-chip input {
+.filter-chip input {
   margin: 0;
   width: 10px;
   height: 10px;
 }
-.filter-status-chip.active {
+.filter-chip.active {
   background: #DEEBFF;
   border-color: #0052CC;
   color: #0052CC;
