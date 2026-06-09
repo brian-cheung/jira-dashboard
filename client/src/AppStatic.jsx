@@ -487,10 +487,11 @@ export default function AppStatic() {
             {/* Status chips */}
             {(() => {
               const allStatuses = [...new Set(issues.map(i => i.status).filter(Boolean))];
-              // Order by STATUS_ORDER (case-insensitive match), then any unknown alphabetically
+              // Two-column layout order
+              const TWO_COL_ORDER = ['Backlog','UAT','To Do','Ready for deployment','In Progress','Done','Ready for UAT','On Hold'];
               const ordered = [...new Set([
-                ...STATUS_ORDER.filter(s => allStatuses.some(a => a.toLowerCase() === s.toLowerCase())),
-                ...allStatuses.filter(a => !STATUS_ORDER.some(s => s.toLowerCase() === a.toLowerCase())).sort()
+                ...TWO_COL_ORDER.filter(s => allStatuses.some(a => a.toLowerCase() === s.toLowerCase())),
+                ...allStatuses.filter(a => !TWO_COL_ORDER.some(s => s.toLowerCase() === a.toLowerCase())).sort()
               ])];
               return (
                 <div className="filter-section">
@@ -501,7 +502,7 @@ export default function AppStatic() {
                       const active = statusFilter[s];
                       return (
                         <label key={s} className={`filter-chip ${active ? 'active' : ''}`}
-                          style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text, fontWeight: 600 } : {}}
+                          style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text, fontWeight: 600, justifyContent: 'center' } : { justifyContent: 'center' }}
                         >
                           <input type="checkbox" checked={active || false} onChange={e => setStatusFilter({ ...statusFilter, [s]: e.target.checked })} />
                           {s}
