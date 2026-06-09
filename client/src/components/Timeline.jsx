@@ -16,7 +16,7 @@ export default function Timeline({ onSelectIssue }) {
     if (!cfg.url) return;
 
     const year = new Date().getFullYear();
-    const jql = `created >= "${year}-01-01" ORDER BY created`;
+    const jql = `project = DEV1 AND created >= "${year}-01-01" ORDER BY created`;
 
     searchIssuesAll(jql).then(issues => {
       // Group by Epic
