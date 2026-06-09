@@ -1,5 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import StatusBadge, { getStatusColor } from './StatusBadge';
+import StatusBadge from './StatusBadge';
+
+const TYPE_COLORS = {
+  'Epic':     '#6554C0',
+  'Story':    '#00875A',
+  'Task':     '#0052CC',
+  'Subtask':  '#0052CC',
+  'Bug':      '#DE350B',
+};
 import './Dashboard.css';
 
 const SORT_FIELDS = {
@@ -161,12 +169,12 @@ export default function Dashboard({
           </thead>
           <tbody>
             {displayList.map(i => {
-              const statusColor = getStatusColor(i.status);
+              const typeColor = TYPE_COLORS[i.issue_type] || '#DFE1E6';
               return (
                 <tr
                   key={i.key}
                   className={`dash-row ${selectedKey === i.key ? 'dash-row-selected' : ''} ${i.issue_type === 'Epic' ? 'dash-row-epic' : ''}`}
-                  style={{ borderLeft: `3px solid ${statusColor.border}` }}
+                  style={{ borderLeft: `3px solid ${typeColor}` }}
                   onClick={() => onSelectIssue(i.key)}
                 >
                   <td className="dash-key" style={{ paddingLeft: i.depth * 16 + 8 }}>
