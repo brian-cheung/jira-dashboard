@@ -23,7 +23,7 @@ function buildMyTasksJql(accountId, testerFieldId) {
   if (testerFieldId) {
     clauses.push(`${testerFieldId} = ${accountId}`);
   }
-  return `(${clauses.join(' OR ')}) ORDER BY updated DESC`;
+  return `(${clauses.join(' OR ')})`;
 }
 
 function discoverFields(customFields) {
@@ -58,7 +58,7 @@ async function fullSync(io) {
     sprint: fields.sprint
   });
 
-  const jql = buildMyTasksJql(currentUserAccountId, fields.tester);
+  const jql = buildMyTasksJql(currentUserAccountId, fields.tester) + ' ORDER BY updated DESC';
   console.log('JQL:', jql);
 
   const issues = await searchIssuesAll(jql);
@@ -98,7 +98,7 @@ async function incrementalSync(io) {
 
   console.log(`Incremental sync since ${log.last_sync}...`);
 
-  const jql = `(${buildMyTasksJql(currentUserAccountId, log.custom_field_tester)}) AND updated >= "${log.last_sync.replace('T', ' ').replace('Z', '')}"`;
+  const jql = `${buildMyTasksJql(currentUserAccountId, log.custom_field_tester)} AND updated >= "${log.last_sync.replace('T', ' ').replace('Z', '')}" ORDER BY updated DESC`;
 
   const issues = await searchIssuesAll(jql);
   console.log(`Fetched ${issues.length} updated issues`);
