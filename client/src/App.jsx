@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import HierarchyTree from './components/HierarchyTree';
-import GanttChart from './components/GanttChart';
+import Dashboard from './components/Dashboard';
 import DetailDrawer from './components/DetailDrawer';
 import FilterBar from './components/FilterBar';
 import { fetchIssues, fetchSyncStatus, triggerSync } from './api';
@@ -13,6 +13,7 @@ export default function App() {
   const [selectedKey, setSelectedKey] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ lastSync: null });
   const [filters, setFilters] = useState({ assignee: true, reporter: true, tester: true });
+  const [statusFilter, setStatusFilter] = useState({});
   const [search, setSearch] = useState('');
   const addToast = useToast();
 
@@ -88,6 +89,9 @@ export default function App() {
             onSearchChange={setSearch}
             filters={filters}
             onFiltersChange={setFilters}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            issues={issues}
           />
           <HierarchyTree
             issues={issues}
@@ -97,8 +101,11 @@ export default function App() {
           />
         </div>
         <div className="app-content">
-          <GanttChart
+          <Dashboard
             issues={issues}
+            filters={filters}
+            statusFilter={statusFilter}
+            search={search}
             onSelectIssue={setSelectedKey}
             selectedKey={selectedKey}
           />

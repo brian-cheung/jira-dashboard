@@ -1,0 +1,91 @@
+.dashboard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dash-count {
+  padding: 6px 0;
+  font-size: 12px;
+  color: #6B778C;
+  flex-shrink: 0;
+}
+.dash-table-wrap {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #DFE1E6;
+  border-radius: 4px;
+}
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.dash-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.dash-table th {
+  background: #F4F5F7;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #42526E;
+  font-size: 11px;
+  white-space: nowrap;
+  border-bottom: 2px solid #DFE1E6;
+  cursor: pointer;
+  user-select: none;
+}
+.dash-table th:hover {
+  background: #EBECF0;
+}
+.dash-table th.sorted-asc, .dash-table th.sorted-desc {
+  color: #0052CC;
+}
+.dash-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.dash-row:nth-child(even) {
+  background: #FAFBFC;
+}
+.dash-row:hover {
+  background: #F4F5F7;
+}
+.dash-row-selected {
+  background: #DEEBFF !important;
+}
+.dash-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #F4F5F7;
+  vertical-align: top;
+  color: #172B4D;
+}
+.dash-key a {
+  font-family: monospace;
+  font-size: 11px;
+  color: #0052CC;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.dash-key a:hover {
+  text-decoration: underline;
+}
+.dash-summary {
+  max-width: 300px;
+  word-break: break-word;
+  line-height: 1.4;
+}
+.dash-date {
+  white-space: nowrap;
+  font-size: 11px;
+  color: #6B778C;
+}
+.dash-sprint {
+  max-width: 150px;
+  font-size: 11px;
+  color: #6B778C;
+  word-break: break-word;
+}

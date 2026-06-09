@@ -27,3 +27,30 @@
   color: #42526E;
   cursor: pointer;
 }
+.filter-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.filter-status-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border: 1px solid #DFE1E6;
+  border-radius: 12px;
+  font-size: 10px;
+  color: #6B778C;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-status-chip input {
+  margin: 0;
+  width: 10px;
+  height: 10px;
+}
+.filter-status-chip.active {
+  background: #DEEBFF;
+  border-color: #0052CC;
+  color: #0052CC;
+}
