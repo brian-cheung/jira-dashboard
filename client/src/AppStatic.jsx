@@ -406,8 +406,11 @@ export default function AppStatic() {
       // Set default status filter (all except Done) on first load
       if (!silent) {
         const defaults = {};
+        const TWO_COL_ORDER = ['Backlog','UAT','To Do','Ready for deployment','In Progress','Done','Ready for UAT','On Hold'];
         for (const i of parsed) {
-          if (i.status && i.status !== 'Done') defaults[i.status] = true;
+          if (!i.status) continue;
+          const norm = TWO_COL_ORDER.find(s => s.toLowerCase() === i.status.toLowerCase()) || i.status;
+          if (norm.toLowerCase() !== 'done') defaults[norm] = true;
         }
         setStatusFilter(defaults);
       }

@@ -184,6 +184,7 @@ export default function Dashboard({
                   <td>{i.tester_name || '-'}</td>
                   <td className="dash-date">{i.due_date ? i.due_date.split('T')[0] : '-'}</td>
                   <td className="dash-date">{i.created ? i.created.split('T')[0] : '-'}</td>
+                  <td>{i.priority || '-'}</td>
                   <td>{i.issue_type || '-'}</td>
                   <td className="dash-sprint">{i.sprint || '-'}</td>
                   <td>{i.fix_versions || '-'}</td>
