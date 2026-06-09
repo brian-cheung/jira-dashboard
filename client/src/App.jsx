@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Dashboard from './components/Dashboard';
+import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import FilterBar from './components/FilterBar';
 import { fetchIssues, fetchSyncStatus, triggerSync } from './api';
@@ -17,12 +18,15 @@ export default function App() {
   const [typeFilter, setTypeFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('tickets');
+  const [filtersReady, setFiltersReady] = useState(false);
   const addToast = useToast();
 
   const loadIssues = useCallback(async () => {
     try {
       const data = await fetchIssues();
       setIssues(data);
+      return data;
     } catch (err) {
       addToast('Failed to load issues: ' + err.message, 'error');
     }
@@ -38,7 +42,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    loadIssues();
+    loadIssues().then(data => {
+      // Set default status filter: all except "Done"
+      if (data && !filtersReady) {
+        const defaults = {};
+        for (const i of data) {
+          if (i.status && i.status !== 'Done') defaults[i.status] = true;
+        }
+        setStatusFilter(defaults);
+        setFiltersReady(true);
+      }
+    });
     loadSyncStatus();
   }, []);
 
@@ -71,6 +85,24 @@ export default function App() {
     }
   }
 
+  function clearAllFilters() {
+    setFilters({ assignee: true, reporter: true, tester: true });
+    setStatusFilter({});
+    setSprintFilter('');
+    setTypeFilter('');
+    setPriorityFilter('');
+    setSearch('');
+  }
+
+  const sharedFilterProps = {
+    search, onSearchChange: setSearch,
+    filters, onFiltersChange: setFilters,
+    statusFilter, onStatusFilterChange: setStatusFilter,
+    sprintFilter, onSprintFilterChange: setSprintFilter,
+    typeFilter, onTypeFilterChange: setTypeFilter,
+    priorityFilter, onPriorityFilterChange: setPriorityFilter,
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -84,36 +116,20 @@ export default function App() {
           <button className="sync-btn" onClick={handleManualSync}>Sync Now</button>
         </div>
       </header>
+      <div className="app-tabs">
+        <button className={`app-tab ${tab === 'tickets' ? 'active' : ''}`} onClick={() => setTab('tickets')}>Tickets</button>
+        <button className={`app-tab ${tab === 'metrics' ? 'active' : ''}`} onClick={() => setTab('metrics')}>Metrics</button>
+      </div>
       <div className="app-main">
         <div className="app-sidebar">
-          <FilterBar
-            search={search}
-            onSearchChange={setSearch}
-            filters={filters}
-            onFiltersChange={setFilters}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            sprintFilter={sprintFilter}
-            onSprintFilterChange={setSprintFilter}
-            typeFilter={typeFilter}
-            onTypeFilterChange={setTypeFilter}
-            priorityFilter={priorityFilter}
-            onPriorityFilterChange={setPriorityFilter}
-            issues={issues}
-          />
+          <FilterBar {...sharedFilterProps} issues={issues} onClearAll={clearAllFilters} />
         </div>
         <div className="app-content">
-          <Dashboard
-            issues={issues}
-            filters={filters}
-            statusFilter={statusFilter}
-            sprintFilter={sprintFilter}
-            typeFilter={typeFilter}
-            priorityFilter={priorityFilter}
-            search={search}
-            onSelectIssue={setSelectedKey}
-            selectedKey={selectedKey}
-          />
+          {tab === 'tickets' ? (
+            <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
+          ) : (
+            <MetricsDashboard issues={issues} onSelectIssue={setSelectedKey} />
+          )}
         </div>
       </div>
       <DetailDrawer

@@ -133,10 +133,18 @@ export default function Dashboard({
     <div className="dashboard">
       <div className="dash-toolbar">
         <span className="dash-count">{filtered.length} of {issues.length} tickets</span>
-        <label className="dash-hierarchy-toggle">
-          <input type="checkbox" checked={hierarchyView} onChange={e => setHierarchyView(e.target.checked)} />
-          Hierarchy
-        </label>
+        <div className="dash-toolbar-actions">
+          {hierarchyView && <button className="dash-btn" onClick={() => setCollapsed({})}>Expand All</button>}
+          {hierarchyView && <button className="dash-btn" onClick={() => {
+            const all = {};
+            displayList.forEach(i => { if (i.hasChildren) all[i.key] = true; });
+            setCollapsed(all);
+          }}>Collapse All</button>}
+          <label className="dash-hierarchy-toggle">
+            <input type="checkbox" checked={hierarchyView} onChange={e => setHierarchyView(e.target.checked)} />
+            Hierarchy
+          </label>
+        </div>
       </div>
       <div className="dash-table-wrap">
         <table className="dash-table">

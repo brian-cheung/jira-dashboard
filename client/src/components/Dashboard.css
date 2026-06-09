@@ -15,6 +15,23 @@
   font-size: 12px;
   color: #6B778C;
 }
+.dash-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dash-btn {
+  padding: 3px 8px;
+  border: 1px solid #DFE1E6;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 10px;
+  color: #42526E;
+  cursor: pointer;
+}
+.dash-btn:hover {
+  background: #F4F5F7;
+}
 .dash-hierarchy-toggle {
   display: flex;
   align-items: center;

@@ -81,3 +81,16 @@
 .filter-select:focus {
   border-color: #4C9AFF;
 }
+.filter-clear-btn {
+  padding: 6px 10px;
+  border: 1px solid #DFE1E6;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 11px;
+  color: #DE350B;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.filter-clear-btn:hover {
+  background: #FFEBE6;
+}

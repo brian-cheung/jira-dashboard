@@ -46,7 +46,8 @@ export default function FilterBar({
   sprintFilter, onSprintFilterChange,
   typeFilter, onTypeFilterChange,
   priorityFilter, onPriorityFilterChange,
-  issues
+  issues,
+  onClearAll
 }) {
   const { statuses, sprints, types, priorities } = useMemo(() => {
     const sSet = new Set();
@@ -97,6 +98,8 @@ export default function FilterBar({
       <DropdownFilter label="Sprint" items={sprints} selected={sprintFilter} onChange={onSprintFilterChange} />
       <DropdownFilter label="Type" items={types} selected={typeFilter} onChange={onTypeFilterChange} />
       <DropdownFilter label="Priority" items={priorities} selected={priorityFilter} onChange={onPriorityFilterChange} />
+
+      <button className="filter-clear-btn" onClick={onClearAll}>Clear All Filters</button>
     </div>
   );
 }
