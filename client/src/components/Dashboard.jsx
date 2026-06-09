@@ -74,14 +74,9 @@ export default function Dashboard({
       const activeStatuses = Object.entries(statusFilter || {}).filter(([, v]) => v).map(([k]) => k);
       const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(i.status);
 
-      const activeSprints = (sprintFilter || []).filter(Boolean);
-      const matchesSprint = activeSprints.length === 0 || (i.sprint && activeSprints.some(s => i.sprint.includes(s)));
-
-      const activeTypes = (typeFilter || []).filter(Boolean);
-      const matchesType = activeTypes.length === 0 || activeTypes.includes(i.issue_type);
-
-      const activePriorities = (priorityFilter || []).filter(Boolean);
-      const matchesPriority = activePriorities.length === 0 || activePriorities.includes(i.priority);
+      const matchesSprint = !sprintFilter || (i.sprint && i.sprint.includes(sprintFilter));
+      const matchesType = !typeFilter || i.issue_type === typeFilter;
+      const matchesPriority = !priorityFilter || i.priority === priorityFilter;
 
       return matchesSearch && matchesRole && matchesStatus && matchesSprint && matchesType && matchesPriority;
     });
