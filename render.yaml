@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: jira-dashboard
+    env: node
+    buildCommand: |
+      npm install
+      cd server && npm install && cd ..
+      cd client && npm install && npx vite build && cd ..
+    startCommand: npm start
+    envVars:
+      - key: JIRA_URL
+        sync: false
+      - key: JIRA_EMAIL
+        sync: false
+      - key: JIRA_API_TOKEN
+        sync: false
+      - key: PORT
+        value: "10000"

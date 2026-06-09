@@ -2,10 +2,11 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const { initCache } = require('./cache');
-const { startSync, getSyncStatus } = require('./sync');
+const { startSync } = require('./sync');
 const routes = require('./routes');
 
 const PORT = process.env.PORT || 3001;
@@ -25,9 +26,18 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 });
 
+// Serve built frontend in production
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(clientDist));
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  }
+});
+
 initCache();
 startSync(io);
 
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
