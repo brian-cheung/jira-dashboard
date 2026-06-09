@@ -10,6 +10,7 @@ const SORT_FIELDS = {
   reporter_name: 'Reporter',
   tester_name: 'Tester',
   due_date: 'Due Date',
+  created: 'Created',
   priority: 'Priority',
   issue_type: 'Type',
   sprint: 'Sprint',
@@ -54,8 +55,8 @@ export default function Dashboard({
   issues, filters, statusFilter, sprintFilter, typeFilter, priorityFilter,
   search, onSelectIssue, selectedKey
 }) {
-  const [sortField, setSortField] = useState('key');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortField, setSortField] = useState('created');
+  const [sortDir, setSortDir] = useState('desc');
   const [hierarchyView, setHierarchyView] = useState(true);
   const [collapsed, setCollapsed] = useState({});
 
@@ -74,7 +75,8 @@ export default function Dashboard({
       const activeStatuses = Object.entries(statusFilter || {}).filter(([, v]) => v).map(([k]) => k);
       const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(i.status);
 
-      const matchesSprint = !sprintFilter || (i.sprint && i.sprint.includes(sprintFilter));
+      const activeSprints = Object.entries(sprintFilter || {}).filter(([, v]) => v).map(([k]) => k);
+      const matchesSprint = activeSprints.length === 0 || (i.sprint && activeSprints.some(s => i.sprint.includes(s)));
       const matchesType = !typeFilter || i.issue_type === typeFilter;
       const matchesPriority = !priorityFilter || i.priority === priorityFilter;
 
@@ -181,7 +183,7 @@ export default function Dashboard({
                   <td>{i.reporter_name || '-'}</td>
                   <td>{i.tester_name || '-'}</td>
                   <td className="dash-date">{i.due_date ? i.due_date.split('T')[0] : '-'}</td>
-                  <td>{i.priority || '-'}</td>
+                  <td className="dash-date">{i.created ? i.created.split('T')[0] : '-'}</td>
                   <td>{i.issue_type || '-'}</td>
                   <td className="dash-sprint">{i.sprint || '-'}</td>
                   <td>{i.fix_versions || '-'}</td>

@@ -6,6 +6,7 @@ import CreateIssueModal from './components/CreateIssueModal';
 import StatusBadge from './components/StatusBadge';
 import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
+import { adfToHtml } from './adf';
 import './App.css';
 import './components/FilterBar.css';
 import './components/Dashboard.css';
@@ -83,6 +84,7 @@ function parseIssue(issue) {
     requested_by: requestedByName,
     sprint: sprintName,
     priority: f.priority ? f.priority.name : '',
+    created: f.created || null,
     updated: f.updated || null,
     comments: [],
   };
@@ -286,7 +288,7 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
               <label>Description <button className="drawer-edit-toggle" onClick={() => setEditingDesc(!editingDesc)}>{editingDesc ? 'View' : 'Edit'}</button></label>
               {editingDesc
                 ? <textarea value={description} onChange={e => setDescription(e.target.value)} rows={12} />
-                : <div className="drawer-desc-rendered" dangerouslySetInnerHTML={{ __html: description || '<em>No description</em>' }} />
+                : <div className="drawer-desc-rendered" dangerouslySetInnerHTML={{ __html: adfToHtml(description) || '<em>No description</em>' }} />
               }
             </div>
             <div className="drawer-meta">
@@ -344,7 +346,7 @@ export default function AppStatic() {
   const [selectedKey, setSelectedKey] = useState(null);
   const [filters, setFilters] = useState({ assignee: true, reporter: true, tester: true });
   const [statusFilter, setStatusFilter] = useState({});
-  const [sprintFilter, setSprintFilter] = useState('');
+  const [sprintFilter, setSprintFilter] = useState({});
   const [typeFilter, setTypeFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -429,7 +431,7 @@ export default function AppStatic() {
   function clearAllFilters() {
     setFilters({ assignee: true, reporter: true, tester: true });
     setStatusFilter({});
-    setSprintFilter('');
+    setSprintFilter({});
     setTypeFilter('');
     setPriorityFilter('');
     setSearch('');
@@ -483,6 +485,50 @@ export default function AppStatic() {
                       </label>
                     ))}
                   </div>
+                </div>
+              );
+            })()}
+
+            {(() => {
+              const sprints = [...new Set(issues.flatMap(i => (i.sprint || '').split(', ').filter(Boolean)))].sort();
+              if (!sprints.length) return null;
+              return (
+                <div className="filter-section">
+                  <div className="filter-section-label">Sprint</div>
+                  <div className="filter-chips">
+                    {sprints.map(s => (
+                      <label key={s} className={`filter-chip ${sprintFilter[s] ? 'active' : ''}`}>
+                        <input type="checkbox" checked={sprintFilter[s] || false} onChange={e => setSprintFilter({ ...sprintFilter, [s]: e.target.checked })} />
+                        {s}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {(() => {
+              const types = [...new Set(issues.map(i => i.issue_type).filter(Boolean))].sort();
+              return (
+                <div className="filter-section">
+                  <label className="filter-section-label">Type</label>
+                  <select className="filter-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                    <option value="">All</option>
+                    {types.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              );
+            })()}
+
+            {(() => {
+              const priorities = [...new Set(issues.map(i => i.priority).filter(Boolean))].sort();
+              return (
+                <div className="filter-section">
+                  <label className="filter-section-label">Priority</label>
+                  <select className="filter-select" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
+                    <option value="">All</option>
+                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
                 </div>
               );
             })()}
