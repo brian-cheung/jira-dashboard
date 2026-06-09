@@ -4,7 +4,7 @@ import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import CreateIssueModal from './components/CreateIssueModal';
 import StatusBadge from './components/StatusBadge';
-import { searchIssuesAll, getCurrentUser, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
+import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
 import './App.css';
 
@@ -354,12 +354,7 @@ export default function AppStatic() {
       const user = await getCurrentUser();
       let testerField = '', requestedByField = '', startDateField = '', sprintField = '';
       try {
-        const fields = await (async () => {
-          const res = await fetch(`${config.url}/rest/api/3/field`, {
-            headers: { 'Authorization': 'Basic ' + btoa(`${config.email}:${config.token}`), 'Accept': 'application/json' }
-          });
-          return res.json();
-        })();
+        const fields = await getCustomFields();
         const tester = fields.find(f => f.name.toLowerCase() === 'tester');
         const requestedBy = fields.find(f => f.name.toLowerCase() === 'requested by');
         const startDate = fields.find(f => f.name.toLowerCase() === 'start date');
