@@ -123,32 +123,62 @@ function ConfigScreen({ onConfigured }) {
   return (
     <div className="config-screen">
       <div className="config-card">
-        <h1>JIRA Dashboard</h1>
-        <p>Connect to your JIRA instance to get started.</p>
+        <div className="config-left">
+          <div className="config-logo">
+            <svg width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#0052CC"/><text x="24" y="32" textAnchor="middle" fill="white" fontFamily="monospace" fontSize="22" fontWeight="bold">J</text></svg>
+          </div>
+          <h1>JIRA Dashboard</h1>
+          <p className="config-subtitle">Connect your Atlassian account to view and manage your tasks in one place.</p>
+          <div className="config-features">
+            <div className="config-feature">
+              <span className="config-feature-icon">📋</span>
+              <span>Track all your issues across projects</span>
+            </div>
+            <div className="config-feature">
+              <span className="config-feature-icon">📊</span>
+              <span>Metrics and trends at a glance</span>
+            </div>
+            <div className="config-feature">
+              <span className="config-feature-icon">✏️</span>
+              <span>Edit, comment, and create issues directly</span>
+            </div>
+            <div className="config-feature">
+              <span className="config-feature-icon">🔒</span>
+              <span>Credentials stay in your browser only</span>
+            </div>
+          </div>
+        </div>
 
-        <div className="config-field">
-          <label>JIRA URL</label>
-          <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-company.atlassian.net" />
-        </div>
-        <div className="config-field">
-          <label>Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
-        </div>
-        <div className="config-field">
-          <label>API Token</label>
-          <input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="Create at https://id.atlassian.com/manage/api-tokens" />
-          <span className="config-hint">Create your token at <a href="https://id.atlassian.com/manage/api-tokens" target="_blank" rel="noopener noreferrer">id.atlassian.com/manage/api-tokens</a></span>
-        </div>
-        <div className="config-field">
-          <label>JQL Query (optional)</label>
-          <input type="text" value={jql} onChange={e => setJql(e.target.value)} placeholder="Leave blank for default: issues where you are assignee/reporter/tester" />
-        </div>
+        <div className="config-right">
+          <h2>Connect to JIRA</h2>
 
-        {error && <div className="config-error">{error}</div>}
+          <div className="config-field">
+            <label>JIRA URL</label>
+            <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-company.atlassian.net" />
+          </div>
+          <div className="config-field">
+            <label>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
+          </div>
+          <div className="config-field">
+            <label>API Token</label>
+            <input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="Paste your API token here" />
+            <span className="config-hint">
+              <a href="https://id.atlassian.com/manage/api-tokens" target="_blank" rel="noopener noreferrer">Create an API token →</a>
+            </span>
+          </div>
+          <div className="config-field">
+            <label>JQL Query <span className="config-optional">optional</span></label>
+            <input type="text" value={jql} onChange={e => setJql(e.target.value)} placeholder="Default: issues assigned to, reported by, or tested by you" />
+          </div>
 
-        <button className="config-btn" onClick={handleConnect} disabled={testing}>
-          {testing ? 'Connecting...' : 'Connect to JIRA'}
-        </button>
+          {error && <div className="config-error">{error}</div>}
+
+          <button className="config-btn" onClick={handleConnect} disabled={testing}>
+            {testing ? <span className="config-spinner" /> : null}
+            {testing ? 'Connecting...' : 'Connect to JIRA'}
+          </button>
+        </div>
       </div>
     </div>
   );

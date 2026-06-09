@@ -15,15 +15,18 @@ async function jiraFetch(path, options = {}) {
   const cfg = getConfig();
   if (!cfg.url) throw new Error('JIRA not configured');
 
+  // Embed credentials in URL to avoid CORS preflight (Authorization header triggers preflight)
+  const baseUrl = cfg.url.replace('https://', `https://${encodeURIComponent(cfg.email)}:${encodeURIComponent(cfg.token)}@`);
+
   const headers = {
-    'Authorization': authHeader(),
     'Accept': 'application/json',
+    'X-Atlassian-Token': 'no-check'
   };
   if (!options.headers || !options.headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const url = `${cfg.url}/rest/api/3/${path}`;
+  const url = `${baseUrl}/rest/api/3/${path}`;
   const res = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
 
   if (res.status === 429) {

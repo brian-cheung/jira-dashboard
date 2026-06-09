@@ -58,3 +58,154 @@ html, body, #root { height: 100%; font-family: -apple-system, BlinkMacSystemFont
   overflow: hidden;
 }
 .app-content { flex: 1; overflow: hidden; padding: 10px; display: flex; flex-direction: column; }
+
+/* Config Screen */
+.config-screen {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #F4F5F7 0%, #EBECF0 100%);
+  padding: 20px;
+}
+.config-card {
+  display: flex;
+  max-width: 800px;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+.config-left {
+  flex: 1;
+  padding: 40px;
+  background: #0052CC;
+  color: #fff;
+}
+.config-left h1 {
+  font-size: 22px;
+  margin: 16px 0 8px;
+}
+.config-subtitle {
+  font-size: 13px;
+  opacity: 0.85;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+.config-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.config-feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.config-feature-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.config-right {
+  flex: 1;
+  padding: 40px;
+}
+.config-right h2 {
+  font-size: 18px;
+  color: #172B4D;
+  margin-bottom: 20px;
+}
+.config-field {
+  margin-bottom: 14px;
+}
+.config-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6B778C;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.config-optional {
+  font-weight: 400;
+  text-transform: none;
+  color: #A5ADBA;
+}
+.config-field input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #DFE1E6;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #172B4D;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.config-field input:focus {
+  border-color: #4C9AFF;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0,82,204,0.1);
+}
+.config-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+}
+.config-hint a {
+  color: #0052CC;
+  text-decoration: none;
+}
+.config-hint a:hover {
+  text-decoration: underline;
+}
+.config-error {
+  padding: 10px 12px;
+  background: #FFEBE6;
+  color: #DE350B;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  word-break: break-word;
+}
+.config-btn {
+  width: 100%;
+  padding: 11px 20px;
+  background: #0052CC;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.config-btn:hover:not(:disabled) {
+  background: #0747A6;
+}
+.config-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+.config-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .config-card { flex-direction: column; }
+  .config-left, .config-right { padding: 24px; }
+}
