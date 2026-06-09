@@ -61,3 +61,14 @@ export function createIssue(data) {
     body: JSON.stringify(data)
   });
 }
+
+export function fetchSettings() {
+  return request('/settings');
+}
+
+export function saveSettings(data) {
+  return request('/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+}

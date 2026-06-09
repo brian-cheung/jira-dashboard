@@ -9,7 +9,8 @@ const {
   upsertIssue,
   upsertComment,
   getSyncLog,
-  updateSyncLog
+  updateSyncLog,
+  getCustomJql
 } = require('./cache');
 
 let currentUserAccountId = null;
@@ -58,8 +59,10 @@ async function fullSync(io) {
     sprint: fields.sprint
   });
 
-  const jql = buildMyTasksJql(currentUserAccountId, fields.tester) + ' ORDER BY updated DESC';
-  console.log('JQL:', jql);
+  const defaultJql = buildMyTasksJql(currentUserAccountId, fields.tester) + ' ORDER BY updated DESC';
+  const customJql = getCustomJql();
+  const jql = customJql || defaultJql;
+  console.log('JQL:', jql, customJql ? '(custom)' : '(default)');
 
   const issues = await searchIssuesAll(jql);
   console.log(`Fetched ${issues.length} issues from JIRA`);
@@ -98,7 +101,9 @@ async function incrementalSync(io) {
 
   console.log(`Incremental sync since ${log.last_sync}...`);
 
-  const jql = `${buildMyTasksJql(currentUserAccountId, log.custom_field_tester)} AND updated >= "${log.last_sync.replace('T', ' ').replace('Z', '')}" ORDER BY updated DESC`;
+  const defaultJql = `${buildMyTasksJql(currentUserAccountId, log.custom_field_tester)} AND updated >= "${log.last_sync.replace('T', ' ').replace('Z', '')}" ORDER BY updated DESC`;
+  const customJql = getCustomJql();
+  const jql = customJql || defaultJql;
 
   const issues = await searchIssuesAll(jql);
   console.log(`Fetched ${issues.length} updated issues`);

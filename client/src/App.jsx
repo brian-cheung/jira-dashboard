@@ -4,6 +4,7 @@ import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import FilterBar from './components/FilterBar';
 import CreateIssueModal from './components/CreateIssueModal';
+import Setup from './components/Setup';
 import { fetchIssues, fetchSyncStatus, triggerSync } from './api';
 import socket from './socket';
 import { useToast } from './components/Toast';
@@ -122,6 +123,7 @@ export default function App() {
       <div className="app-tabs">
         <button className={`app-tab ${tab === 'tickets' ? 'active' : ''}`} onClick={() => setTab('tickets')}>Tickets</button>
         <button className={`app-tab ${tab === 'metrics' ? 'active' : ''}`} onClick={() => setTab('metrics')}>Metrics</button>
+        <button className={`app-tab ${tab === 'setup' ? 'active' : ''}`} onClick={() => setTab('setup')}>Setup</button>
       </div>
       <div className="app-main">
         <div className="app-sidebar">
@@ -130,8 +132,10 @@ export default function App() {
         <div className="app-content">
           {tab === 'tickets' ? (
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
-          ) : (
+          ) : tab === 'metrics' ? (
             <MetricsDashboard issues={issues} onSelectIssue={setSelectedKey} />
+          ) : (
+            <Setup />
           )}
         </div>
       </div>

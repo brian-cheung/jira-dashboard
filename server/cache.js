@@ -48,7 +48,8 @@ function initCache() {
       custom_field_tester TEXT,
       custom_field_requested_by TEXT,
       custom_field_start_date TEXT,
-      custom_field_sprint TEXT
+      custom_field_sprint TEXT,
+      custom_jql TEXT
     );
   `);
 
@@ -236,6 +237,16 @@ function deleteIssue(key) {
   db.prepare('DELETE FROM comments WHERE issue_key = ?').run(key);
 }
 
+function getCustomJql() {
+  const log = getSyncLog();
+  return log ? log.custom_jql || '' : '';
+}
+
+function setCustomJql(jql) {
+  const db = getDb();
+  db.prepare('UPDATE sync_log SET custom_jql = ? WHERE id = 1').run(jql || null);
+}
+
 module.exports = {
   initCache,
   getDb,
@@ -246,5 +257,7 @@ module.exports = {
   getSyncLog,
   updateSyncLog,
   updateIssueLocal,
-  deleteIssue
+  deleteIssue,
+  getCustomJql,
+  setCustomJql
 };

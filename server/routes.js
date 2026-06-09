@@ -14,7 +14,9 @@ const {
 const {
   getAllIssues,
   getIssueByKey,
-  updateIssueLocal
+  updateIssueLocal,
+  getCustomJql,
+  setCustomJql
 } = require('./cache');
 const { triggerSync, getSyncStatus } = require('./sync');
 
@@ -173,6 +175,32 @@ router.post('/sync', async (req, res) => {
 // GET /api/sync/status — sync status
 router.get('/sync/status', (req, res) => {
   res.json(getSyncStatus());
+});
+
+// GET /api/settings — current configuration
+router.get('/settings', (req, res) => {
+  const status = getSyncStatus();
+  const customJql = getCustomJql();
+
+  // Build the default JQL for display (not account-specific without sync running, approximate)
+  res.json({
+    customJql,
+    defaultJql: '(assignee = currentUser() OR reporter = currentUser() OR "Tester[User Picker]" = currentUser()) ORDER BY updated DESC',
+    testerField: status.testerField,
+    requestedByField: status.requestedByField,
+    lastSync: status.lastSync
+  });
+});
+
+// PUT /api/settings — save custom JQL
+router.put('/settings', (req, res) => {
+  try {
+    const { customJql } = req.body;
+    setCustomJql(customJql || '');
+    res.json({ success: true, customJql: customJql || '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
