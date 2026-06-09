@@ -165,7 +165,7 @@ export default function DetailDrawer({ issueKey, onClose }) {
                   <div key={c.id} className="drawer-comment">
                     <span className="comment-author">{c.author}</span>
                     <span className="comment-date">{new Date(c.created).toLocaleString()}</span>
-                    <div className="comment-body" dangerouslySetInnerHTML={{ __html: c.body }} />
+                    <div className="comment-body" dangerouslySetInnerHTML={{ __html: adfToHtml(c.body) }} />
                   </div>
                 ))}
               </div>
