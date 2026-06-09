@@ -7,6 +7,7 @@
     "server": "cd server && node index.js",
     "client": "cd client && npx vite --port 5173",
     "build": "cd client && npx vite build",
+    "build:pages": "cd client && cp index.html index.server.html && cp pages.html index.html && npx vite build --outDir ../docs --emptyOutDir && mv index.server.html index.html",
     "start": "cd server && node index.js"
   },
   "devDependencies": {
