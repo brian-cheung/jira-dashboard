@@ -3,6 +3,7 @@ import Dashboard from './components/Dashboard';
 import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import FilterBar from './components/FilterBar';
+import CreateIssueModal from './components/CreateIssueModal';
 import { fetchIssues, fetchSyncStatus, triggerSync } from './api';
 import socket from './socket';
 import { useToast } from './components/Toast';
@@ -20,6 +21,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('tickets');
   const [filtersReady, setFiltersReady] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const addToast = useToast();
 
   const loadIssues = useCallback(async () => {
@@ -113,6 +115,7 @@ export default function App() {
               ? `Last sync: ${new Date(syncStatus.lastSync).toLocaleTimeString()}`
               : 'Not synced yet'}
           </span>
+          <button className="sync-btn" onClick={() => setShowCreate(true)}>+ New Issue</button>
           <button className="sync-btn" onClick={handleManualSync}>Sync Now</button>
         </div>
       </header>
@@ -136,6 +139,16 @@ export default function App() {
         issueKey={selectedKey}
         onClose={() => setSelectedKey(null)}
       />
+      {showCreate && (
+        <CreateIssueModal
+          issues={issues}
+          onClose={() => setShowCreate(false)}
+          onCreated={(result) => {
+            setShowCreate(false);
+            loadIssues();
+          }}
+        />
+      )}
     </div>
   );
 }

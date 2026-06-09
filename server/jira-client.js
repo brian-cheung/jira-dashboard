@@ -73,6 +73,13 @@ async function getIssue(key) {
   return jiraFetch(`issue/${key}?expand=renderedFields`);
 }
 
+async function createIssue(fields) {
+  return jiraFetch('issue', {
+    method: 'POST',
+    body: JSON.stringify({ fields })
+  });
+}
+
 async function updateIssue(key, fields) {
   return jiraFetch(`issue/${key}`, {
     method: 'PUT',
@@ -130,6 +137,7 @@ module.exports = {
   searchIssues,
   searchIssuesAll,
   getIssue,
+  createIssue,
   updateIssue,
   doTransition,
   getTransitions,

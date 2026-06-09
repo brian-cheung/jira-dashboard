@@ -4,6 +4,7 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 const {
   getIssue,
+  createIssue,
   updateIssue,
   doTransition,
   getTransitions,
@@ -16,6 +17,43 @@ const {
   updateIssueLocal
 } = require('./cache');
 const { triggerSync, getSyncStatus } = require('./sync');
+
+// POST /api/issues — create a new issue in JIRA
+router.post('/issues', async (req, res) => {
+  try {
+    const { projectKey, summary, description, issueType, parentKey } = req.body;
+    if (!projectKey || !summary || !issueType) {
+      return res.status(400).json({ error: 'projectKey, summary, and issueType are required' });
+    }
+
+    const fields = {
+      project: { key: projectKey },
+      summary,
+      issuetype: { name: issueType }
+    };
+
+    if (description) {
+      fields.description = {
+        type: 'doc',
+        version: 1,
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: description }] }]
+      };
+    }
+
+    if (parentKey) {
+      fields.parent = { key: parentKey };
+    }
+
+    const result = await createIssue(fields);
+
+    const io = req.app.get('io');
+    if (io) io.emit('sync:updated', { keys: [result.key], lastSync: new Date().toISOString() });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET /api/issues — all cached issues
 router.get('/issues', (req, res) => {

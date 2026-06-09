@@ -54,3 +54,10 @@ export function triggerSync() {
 export function fetchSyncStatus() {
   return request('/sync/status');
 }
+
+export function createIssue(data) {
+  return request('/issues', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
