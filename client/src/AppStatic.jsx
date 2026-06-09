@@ -86,13 +86,14 @@ function ConfigScreen({ onConfigured }) {
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
   const [jql, setJql] = useState('');
+  const [backendUrl, setBackendUrl] = useState('');
   const [error, setError] = useState('');
   const [testing, setTesting] = useState(false);
 
   async function handleConnect() {
     setTesting(true);
     setError('');
-    const cfg = { url, email, token, jql };
+    const cfg = { url, email, token, jql, backendUrl };
     localStorage.setItem('jira_config', JSON.stringify(cfg));
     try {
       const user = await getCurrentUser();
@@ -101,7 +102,7 @@ function ConfigScreen({ onConfigured }) {
       localStorage.setItem('jira_config', JSON.stringify(cfg));
       onConfigured(cfg);
     } catch (e) {
-      setError('Connection failed: ' + e.message);
+      setError('Connection failed: ' + e.message + (backendUrl ? '' : '. You may need to set up a backend proxy — see below.'));
       localStorage.removeItem('jira_config');
     }
     setTesting(false);
@@ -117,6 +118,7 @@ function ConfigScreen({ onConfigured }) {
       setEmail(saved.email || '');
       setToken(saved.token || '');
       setJql(saved.jql || '');
+      setBackendUrl(saved.backendUrl || '');
     }
   }, []);
 
@@ -170,6 +172,13 @@ function ConfigScreen({ onConfigured }) {
           <div className="config-field">
             <label>JQL Query <span className="config-optional">optional</span></label>
             <input type="text" value={jql} onChange={e => setJql(e.target.value)} placeholder="Default: issues assigned to, reported by, or tested by you" />
+          </div>
+          <div className="config-field">
+            <label>Backend Proxy URL <span className="config-optional">needed for browser access</span></label>
+            <input type="text" value={backendUrl} onChange={e => setBackendUrl(e.target.value)} placeholder="e.g. https://your-app.onrender.com — leave blank to try direct access" />
+            <span className="config-hint">
+              JIRA blocks browser requests. Deploy a free proxy on <a href="https://render.com" target="_blank" rel="noopener noreferrer">Render →</a> or run the included server locally
+            </span>
           </div>
 
           {error && <div className="config-error">{error}</div>}

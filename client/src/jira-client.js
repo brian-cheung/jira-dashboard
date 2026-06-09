@@ -1,23 +1,37 @@
-// Direct JIRA API client (browser-side)
+// JIRA API client — supports both direct JIRA access and backend proxy
 function getConfig() {
   try {
     return JSON.parse(localStorage.getItem('jira_config') || '{}');
   } catch { return {}; }
 }
 
-function authHeader() {
-  const cfg = getConfig();
-  if (!cfg.email || !cfg.token) return null;
-  return 'Basic ' + btoa(`${cfg.email}:${cfg.token}`);
-}
-
 async function jiraFetch(path, options = {}) {
   const cfg = getConfig();
   if (!cfg.url) throw new Error('JIRA not configured');
 
-  // Embed credentials in URL to avoid CORS preflight (Authorization header triggers preflight)
-  const baseUrl = cfg.url.replace('https://', `https://${encodeURIComponent(cfg.email)}:${encodeURIComponent(cfg.token)}@`);
+  // If backend proxy is configured, route through it
+  if (cfg.backendUrl) {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'x-jira-url': cfg.url,
+      'x-jira-email': cfg.email,
+      'x-jira-token': cfg.token,
+    };
+    const url = `${cfg.backendUrl}/api/proxy/${path}`;
+    const res = await fetch(url, {
+      ...options,
+      headers: { ...headers, ...options.headers }
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Backend ${res.status}: ${body}`);
+    }
+    return res.json();
+  }
 
+  // Direct JIRA access (only works if CORS is configured on JIRA side)
+  const baseUrl = cfg.url.replace('https://', `https://${encodeURIComponent(cfg.email)}:${encodeURIComponent(cfg.token)}@`);
   const headers = {
     'Accept': 'application/json',
     'X-Atlassian-Token': 'no-check'
@@ -25,7 +39,6 @@ async function jiraFetch(path, options = {}) {
   if (!options.headers || !options.headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
-
   const url = `${baseUrl}/rest/api/3/${path}`;
   const res = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
 

@@ -220,4 +220,44 @@ router.put('/settings', (req, res) => {
   }
 });
 
+// ALL /api/proxy/* — generic JIRA proxy for static frontend
+router.all('/proxy/*', async (req, res) => {
+  try {
+    const jiraUrl = req.headers['x-jira-url'];
+    const jiraEmail = req.headers['x-jira-email'];
+    const jiraToken = req.headers['x-jira-token'];
+    if (!jiraUrl || !jiraEmail || !jiraToken) {
+      return res.status(400).json({ error: 'Missing x-jira-url, x-jira-email, or x-jira-token headers' });
+    }
+
+    const auth = Buffer.from(`${jiraEmail}:${jiraToken}`).toString('base64');
+    const path = req.params[0]; // everything after /api/proxy/
+    const jiraPath = `${jiraUrl}/rest/api/3/${path}`;
+
+    const fetch = require('node-fetch');
+    const fetchOptions = {
+      method: req.method,
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Accept': 'application/json',
+        'X-Atlassian-Token': 'no-check',
+      }
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      fetchOptions.headers['Content-Type'] = 'application/json';
+      if (req.body && Object.keys(req.body).length > 0) {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+    }
+
+    const jiraRes = await fetch(jiraPath, fetchOptions);
+    const body = await jiraRes.text();
+
+    res.status(jiraRes.status).set('Content-Type', 'application/json').send(body);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
