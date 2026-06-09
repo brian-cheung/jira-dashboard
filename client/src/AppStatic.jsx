@@ -3,6 +3,7 @@ import Dashboard from './components/Dashboard';
 import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import CreateIssueModal from './components/CreateIssueModal';
+import Timeline from './components/Timeline';
 import StatusBadge, { getStatusColor, STATUS_ORDER } from './components/StatusBadge';
 import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
@@ -15,6 +16,7 @@ import './components/HierarchyTree.css';
 import './components/MetricsDashboard.css';
 import './components/CreateIssueModal.css';
 import './components/Setup.css';
+import './components/Timeline.css';
 import './components/Toast.css';
 
 // Simple toast inline (no socket)
@@ -220,7 +222,6 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [transitions, setTransitions] = useState([]);
-  const [commentText, setCommentText] = useState('');
   const [savingSummary, setSavingSummary] = useState(false);
 
   useEffect(() => {
@@ -320,23 +321,6 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
                   </div>
                 ))}
                 {(issue.comments || []).length === 0 && <div className="drawer-loading" style={{ padding: 10, fontSize: 12 }}>No comments yet.</div>}
-              </div>
-              <div className="drawer-comment-form">
-                <textarea value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Add a comment..." rows={3} />
-                <button onClick={async () => {
-                  if (!commentText.trim()) return;
-                  try { await addComment(issueKey, commentText); setCommentText(''); addToast('Comment added', 'success');
-                    // Refresh issue to show new comment
-                    const data = await getIssue(issueKey);
-                    const parsed = parseIssue(data);
-                    parsed.comments = (data.fields.comment && data.fields.comment.comments || []).map(c => ({
-                      id: c.id, author: c.author ? c.author.displayName : '',
-                      body: (() => { const raw = c.body; if (!raw) return ''; if (typeof raw === 'string') return adfToHtml(raw) || raw; return adfToHtml(raw) || JSON.stringify(raw); })(),
-                      created: c.created
-                    }));
-                    setIssue(parsed);
-                  } catch (err) { addToast('Failed: ' + err.message, 'error'); }
-                }}>Add Comment</button>
               </div>
             </div>
           </div>
@@ -468,6 +452,7 @@ export default function AppStatic() {
       <div className="app-tabs">
         <button className={`app-tab ${tab === 'tickets' ? 'active' : ''}`} onClick={() => setTab('tickets')}>Tickets</button>
         <button className={`app-tab ${tab === 'metrics' ? 'active' : ''}`} onClick={() => setTab('metrics')}>Metrics</button>
+        <button className={`app-tab ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}>Timeline</button>
         <button className={`app-tab ${tab === 'setup' ? 'active' : ''}`} onClick={() => setTab('setup')}>Setup</button>
       </div>
       <div className="app-main">
@@ -580,6 +565,8 @@ export default function AppStatic() {
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
           ) : tab === 'metrics' ? (
             <MetricsDashboard issues={issues} onSelectIssue={setSelectedKey} />
+          ) : tab === 'timeline' ? (
+            <Timeline onSelectIssue={setSelectedKey} />
           ) : (
             <div className="setup">
               <div className="setup-section">
