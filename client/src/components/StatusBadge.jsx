@@ -20,7 +20,8 @@ export const STATUS_ORDER = [
 ];
 
 export default function StatusBadge({ status }) {
-  const colors = STATUS_COLORS[status] || { bg: '#DFE1E6', text: '#42526E', border: '#97A0AF' };
+  const key = Object.keys(STATUS_COLORS).find(k => k.toLowerCase() === (status || '').toLowerCase());
+  const colors = STATUS_COLORS[key] || { bg: '#DFE1E6', text: '#42526E', border: '#97A0AF' };
   return (
     <span style={{
       display: 'inline-block',
@@ -38,5 +39,7 @@ export default function StatusBadge({ status }) {
 }
 
 export function getStatusColor(status) {
-  return STATUS_COLORS[status] || { bg: '#DFE1E6', text: '#42526E', border: '#97A0AF' };
+  // Case-insensitive lookup
+  const key = Object.keys(STATUS_COLORS).find(k => k.toLowerCase() === (status || '').toLowerCase());
+  return STATUS_COLORS[key] || { bg: '#DFE1E6', text: '#42526E', border: '#97A0AF' };
 }

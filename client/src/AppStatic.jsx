@@ -487,10 +487,10 @@ export default function AppStatic() {
             {/* Status chips */}
             {(() => {
               const allStatuses = [...new Set(issues.map(i => i.status).filter(Boolean))];
-              // Order by STATUS_ORDER, then any unknown statuses alphabetically
+              // Order by STATUS_ORDER (case-insensitive match), then any unknown alphabetically
               const ordered = [...new Set([
-                ...STATUS_ORDER.filter(s => allStatuses.includes(s)),
-                ...allStatuses.filter(s => !STATUS_ORDER.includes(s)).sort()
+                ...STATUS_ORDER.filter(s => allStatuses.some(a => a.toLowerCase() === s.toLowerCase())),
+                ...allStatuses.filter(a => !STATUS_ORDER.some(s => s.toLowerCase() === a.toLowerCase())).sort()
               ])];
               return (
                 <div className="filter-section">
