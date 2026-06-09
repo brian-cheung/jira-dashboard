@@ -72,8 +72,8 @@ export default function Dashboard({
       if (filters.tester) roleChecks.push(i.tester_name);
       const matchesRole = roleChecks.length === 0 || roleChecks.some(Boolean);
 
-      const activeStatuses = Object.entries(statusFilter || {}).filter(([, v]) => v).map(([k]) => k);
-      const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(i.status);
+      const activeStatuses = Object.entries(statusFilter || {}).filter(([, v]) => v).map(([k]) => k.toLowerCase());
+      const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes((i.status || '').toLowerCase());
 
       const activeSprints = Object.entries(sprintFilter || {}).filter(([, v]) => v).map(([k]) => k);
       const matchesSprint = activeSprints.length === 0 || (i.sprint && activeSprints.some(s => i.sprint.includes(s)));
