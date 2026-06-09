@@ -3,7 +3,6 @@ import Dashboard from './components/Dashboard';
 import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import CreateIssueModal from './components/CreateIssueModal';
-import Timeline from './components/Timeline';
 import StatusBadge, { getStatusColor, STATUS_ORDER } from './components/StatusBadge';
 import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
@@ -16,7 +15,6 @@ import './components/HierarchyTree.css';
 import './components/MetricsDashboard.css';
 import './components/CreateIssueModal.css';
 import './components/Setup.css';
-import './components/Timeline.css';
 import './components/Toast.css';
 
 // Simple toast inline (no socket)
@@ -495,7 +493,6 @@ export default function AppStatic() {
       <div className="app-tabs">
         <button className={`app-tab ${tab === 'tickets' ? 'active' : ''}`} onClick={() => setTab('tickets')}>Tickets</button>
         <button className={`app-tab ${tab === 'metrics' ? 'active' : ''}`} onClick={() => setTab('metrics')}>Metrics</button>
-        <button className={`app-tab ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}>Timeline</button>
         <button className={`app-tab ${tab === 'setup' ? 'active' : ''}`} onClick={() => setTab('setup')}>Setup</button>
       </div>
       <div className="app-main">
@@ -608,8 +605,6 @@ export default function AppStatic() {
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
           ) : tab === 'metrics' ? (
             <MetricsDashboard issues={issues} onSelectIssue={setSelectedKey} />
-          ) : tab === 'timeline' ? (
-            <Timeline onSelectIssue={setSelectedKey} />
           ) : (
             <div className="setup">
               <div className="setup-section">
