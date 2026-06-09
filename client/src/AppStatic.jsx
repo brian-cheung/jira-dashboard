@@ -3,7 +3,7 @@ import Dashboard from './components/Dashboard';
 import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import CreateIssueModal from './components/CreateIssueModal';
-import StatusBadge, { getStatusColor } from './components/StatusBadge';
+import StatusBadge, { getStatusColor, STATUS_ORDER } from './components/StatusBadge';
 import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
 import { adfToHtml } from './adf';
@@ -486,17 +486,22 @@ export default function AppStatic() {
 
             {/* Status chips */}
             {(() => {
-              const statuses = [...new Set(issues.map(i => i.status).filter(Boolean))].sort();
+              const allStatuses = [...new Set(issues.map(i => i.status).filter(Boolean))];
+              // Order by STATUS_ORDER, then any unknown statuses alphabetically
+              const ordered = [...new Set([
+                ...STATUS_ORDER.filter(s => allStatuses.includes(s)),
+                ...allStatuses.filter(s => !STATUS_ORDER.includes(s)).sort()
+              ])];
               return (
                 <div className="filter-section">
                   <div className="filter-section-label">Status</div>
                   <div className="filter-chips">
-                    {statuses.map(s => {
+                    {ordered.map(s => {
                       const sc = getStatusColor(s);
                       const active = statusFilter[s];
                       return (
                         <label key={s} className={`filter-chip ${active ? 'active' : ''}`}
-                          style={active ? { backgroundColor: sc.border, borderColor: sc.border, color: '#fff' } : {}}
+                          style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text, fontWeight: 600 } : {}}
                         >
                           <input type="checkbox" checked={active || false} onChange={e => setStatusFilter({ ...statusFilter, [s]: e.target.checked })} />
                           {s}
