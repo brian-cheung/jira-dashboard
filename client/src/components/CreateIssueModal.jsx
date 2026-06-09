@@ -15,7 +15,7 @@ export default function CreateIssueModal({ issues, onClose, onCreated }) {
   const projects = useMemo(() => {
     const set = new Set();
     for (const i of issues || []) {
-      const m = i.key.match(/^([A-Z]+)-\d+$/);
+      const m = i.key.match(/^([A-Z][A-Z0-9]*?)-/);
       if (m) set.add(m[1]);
     }
     return [...set].sort();
