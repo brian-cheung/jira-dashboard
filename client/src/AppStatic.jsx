@@ -310,6 +310,49 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
               <div><strong>Priority:</strong> {issue.priority || '-'}</div>
               <div><strong>Due date:</strong> {issue.due_date || '-'}</div>
             </div>
+            {(() => {
+              const parentChain = [];
+              let current = issue;
+              while (current && (current.parent_key || current.epic_key)) {
+                const parentKey = current.parent_key || current.epic_key;
+                const parent = issues.find(i => i.key === parentKey);
+                if (!parent || parent.key === current.key) break;
+                parentChain.push(parent);
+                current = parent;
+              }
+              const children = issues.filter(i => i.parent_key === issue.key || i.epic_key === issue.key);
+              if (parentChain.length === 0 && children.length === 0) return null;
+              return (
+                <details className="drawer-section drawer-hierarchy">
+                  <summary>Hierarchy ({parentChain.length + children.length})</summary>
+                  {parentChain.length > 0 && (
+                    <div className="hierarchy-group">
+                      <div className="hierarchy-label">Parents</div>
+                      {parentChain.map(p => (
+                        <div key={p.key} className="hierarchy-item parent" onClick={() => { }} style={{ cursor: 'pointer' }}>
+                          <span className="hierarchy-key">{p.key}</span>
+                          <span className="hierarchy-summary">{p.summary}</span>
+                          <StatusBadge status={p.status} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {children.length > 0 && (
+                    <div className="hierarchy-group">
+                      <div className="hierarchy-label">Children ({children.length})</div>
+                      {children.map(c => (
+                        <div key={c.key} className="hierarchy-item child">
+                          <span className="hierarchy-key">{c.key}</span>
+                          <span className="hierarchy-summary">{c.summary}</span>
+                          <StatusBadge status={c.status} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </details>
+              );
+            })()}
+
             <div className="drawer-section">
               <h3>Comments</h3>
               <div className="drawer-comments">

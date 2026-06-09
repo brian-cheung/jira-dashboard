@@ -198,3 +198,52 @@
   text-align: center;
   color: #6B778C;
 }
+
+.drawer-hierarchy {
+  border-top: 1px solid #DFE1E6;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.drawer-hierarchy summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: #172B4D;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.drawer-hierarchy summary:hover {
+  color: #0052CC;
+}
+.hierarchy-group {
+  margin-top: 8px;
+}
+.hierarchy-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6B778C;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.hierarchy-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+}
+.hierarchy-item:hover {
+  background: #F4F5F7;
+}
+.hierarchy-key {
+  font-family: monospace;
+  font-size: 10px;
+  color: #0052CC;
+  flex-shrink: 0;
+}
+.hierarchy-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

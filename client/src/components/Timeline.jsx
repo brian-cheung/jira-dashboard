@@ -16,13 +16,9 @@ export default function Timeline({ onSelectIssue }) {
     if (!cfg.url) return;
 
     const year = new Date().getFullYear();
-    const jql = `(assignee = currentUser() OR reporter = currentUser()) AND created >= "${year}-01-01" ORDER BY created`;
-    // Try tester field too if configured
-    const jqlFull = cfg.testerField
-      ? `(assignee = currentUser() OR reporter = currentUser() OR ${cfg.testerField} = currentUser()) AND created >= "${year}-01-01" ORDER BY created`
-      : jql;
+    const jql = `created >= "${year}-01-01" ORDER BY created`;
 
-    searchIssuesAll(jqlFull).then(issues => {
+    searchIssuesAll(jql).then(issues => {
       // Group by Epic
       const epicMap = {};
       const orphans = [];
