@@ -99,7 +99,12 @@ async function getTransitions(key) {
   return res.transitions;
 }
 
-async function addComment(key, body) {
+async function addComment(key, text) {
+  const body = {
+    type: 'doc',
+    version: 1,
+    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }]
+  };
   return jiraFetch(`issue/${key}/comment`, {
     method: 'POST',
     body: JSON.stringify({ body })
