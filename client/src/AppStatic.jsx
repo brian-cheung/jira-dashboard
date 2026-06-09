@@ -3,7 +3,7 @@ import Dashboard from './components/Dashboard';
 import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import CreateIssueModal from './components/CreateIssueModal';
-import StatusBadge from './components/StatusBadge';
+import StatusBadge, { getStatusColor } from './components/StatusBadge';
 import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
 import { adfToHtml } from './adf';
@@ -219,21 +219,25 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState('');
-  const [description, setDescription] = useState('');
   const [transitions, setTransitions] = useState([]);
   const [commentText, setCommentText] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [editingDesc, setEditingDesc] = useState(false);
+  const [savingSummary, setSavingSummary] = useState(false);
 
   useEffect(() => {
     if (!issueKey) return;
     setLoading(true);
     getIssue(issueKey).then(data => {
       const parsed = parseIssue(data);
+      // Fetch comments with ADF-to-HTML conversion
       parsed.comments = (data.fields.comment && data.fields.comment.comments || []).map(c => ({
         id: c.id,
         author: c.author ? c.author.displayName : '',
-        body: typeof c.body === 'object' ? JSON.stringify(c.body) : (c.body || ''),
+        body: (() => {
+          const raw = c.body;
+          if (!raw) return '';
+          if (typeof raw === 'string') return adfToHtml(raw) || raw;
+          return adfToHtml(raw) || JSON.stringify(raw);
+        })(),
         created: c.created
       }));
       if (data.fields.renderedFields && data.fields.renderedFields.description) {
@@ -241,7 +245,6 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
       }
       setIssue(parsed);
       setSummary(parsed.summary);
-      setDescription(parsed.description);
       setLoading(false);
     }).catch(err => {
       addToast('Failed: ' + err.message, 'error');
@@ -282,14 +285,18 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
             </div>
             <div className="drawer-field">
               <label>Summary</label>
-              <input value={summary} onChange={e => setSummary(e.target.value)} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={summary} onChange={e => setSummary(e.target.value)} style={{ flex: 1 }} />
+                <button className="drawer-save-btn" style={{ width: 'auto', padding: '6px 12px', margin: 0 }} disabled={savingSummary} onClick={async () => {
+                  setSavingSummary(true);
+                  try { await updateIssue(issueKey, { summary }); addToast('Saved', 'success'); } catch (err) { addToast('Failed: ' + err.message, 'error'); }
+                  setSavingSummary(false);
+                }}>{savingSummary ? '...' : 'Save'}</button>
+              </div>
             </div>
             <div className="drawer-field">
-              <label>Description <button className="drawer-edit-toggle" onClick={() => setEditingDesc(!editingDesc)}>{editingDesc ? 'View' : 'Edit'}</button></label>
-              {editingDesc
-                ? <textarea value={description} onChange={e => setDescription(e.target.value)} rows={12} />
-                : <div className="drawer-desc-rendered" dangerouslySetInnerHTML={{ __html: adfToHtml(description) || '<em>No description</em>' }} />
-              }
+              <label>Description</label>
+              <div className="drawer-desc-rendered" dangerouslySetInnerHTML={{ __html: adfToHtml(issue.description) || '<em>No description</em>' }} />
             </div>
             <div className="drawer-meta">
               <div><strong>Assignee:</strong> {issue.assignee_name || '-'}</div>
@@ -302,11 +309,6 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
               <div><strong>Priority:</strong> {issue.priority || '-'}</div>
               <div><strong>Due date:</strong> {issue.due_date || '-'}</div>
             </div>
-            <button className="drawer-save-btn" disabled={saving} onClick={async () => {
-              setSaving(true);
-              try { await updateIssue(issueKey, { summary, description }); addToast('Saved', 'success'); } catch (err) { addToast('Failed: ' + err.message, 'error'); }
-              setSaving(false);
-            }}>{saving ? 'Saving...' : 'Save Changes'}</button>
             <div className="drawer-section">
               <h3>Comments</h3>
               <div className="drawer-comments">
@@ -314,15 +316,26 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
                   <div key={c.id} className="drawer-comment">
                     <span className="comment-author">{c.author}</span>
                     <span className="comment-date">{new Date(c.created).toLocaleString()}</span>
-                    <div className="comment-body" dangerouslySetInnerHTML={{ __html: typeof c.body === 'string' && c.body.startsWith('{') ? '<em>See JIRA</em>' : c.body }} />
+                    <div className="comment-body" dangerouslySetInnerHTML={{ __html: c.body || '<em>No content</em>' }} />
                   </div>
                 ))}
+                {(issue.comments || []).length === 0 && <div className="drawer-loading" style={{ padding: 10, fontSize: 12 }}>No comments yet.</div>}
               </div>
               <div className="drawer-comment-form">
                 <textarea value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Add a comment..." rows={3} />
                 <button onClick={async () => {
                   if (!commentText.trim()) return;
-                  try { await addComment(issueKey, commentText); setCommentText(''); addToast('Comment added', 'success'); } catch (err) { addToast('Failed: ' + err.message, 'error'); }
+                  try { await addComment(issueKey, commentText); setCommentText(''); addToast('Comment added', 'success');
+                    // Refresh issue to show new comment
+                    const data = await getIssue(issueKey);
+                    const parsed = parseIssue(data);
+                    parsed.comments = (data.fields.comment && data.fields.comment.comments || []).map(c => ({
+                      id: c.id, author: c.author ? c.author.displayName : '',
+                      body: (() => { const raw = c.body; if (!raw) return ''; if (typeof raw === 'string') return adfToHtml(raw) || raw; return adfToHtml(raw) || JSON.stringify(raw); })(),
+                      created: c.created
+                    }));
+                    setIssue(parsed);
+                  } catch (err) { addToast('Failed: ' + err.message, 'error'); }
                 }}>Add Comment</button>
               </div>
             </div>
@@ -478,12 +491,18 @@ export default function AppStatic() {
                 <div className="filter-section">
                   <div className="filter-section-label">Status</div>
                   <div className="filter-chips">
-                    {statuses.map(s => (
-                      <label key={s} className={`filter-chip ${statusFilter[s] ? 'active' : ''}`}>
-                        <input type="checkbox" checked={statusFilter[s] || false} onChange={e => setStatusFilter({ ...statusFilter, [s]: e.target.checked })} />
-                        {s}
-                      </label>
-                    ))}
+                    {statuses.map(s => {
+                      const sc = getStatusColor(s);
+                      const active = statusFilter[s];
+                      return (
+                        <label key={s} className={`filter-chip ${active ? 'active' : ''}`}
+                          style={active ? { backgroundColor: sc.border, borderColor: sc.border, color: '#fff' } : {}}
+                        >
+                          <input type="checkbox" checked={active || false} onChange={e => setStatusFilter({ ...statusFilter, [s]: e.target.checked })} />
+                          {s}
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -492,16 +511,27 @@ export default function AppStatic() {
             {(() => {
               const sprints = [...new Set(issues.flatMap(i => (i.sprint || '').split(', ').filter(Boolean)))].sort();
               if (!sprints.length) return null;
+              const activeCount = Object.values(sprintFilter).filter(Boolean).length;
               return (
                 <div className="filter-section">
-                  <div className="filter-section-label">Sprint</div>
-                  <div className="filter-chips">
-                    {sprints.map(s => (
-                      <label key={s} className={`filter-chip ${sprintFilter[s] ? 'active' : ''}`}>
-                        <input type="checkbox" checked={sprintFilter[s] || false} onChange={e => setSprintFilter({ ...sprintFilter, [s]: e.target.checked })} />
-                        {s}
-                      </label>
-                    ))}
+                  <label className="filter-section-label">Sprint</label>
+                  <div className="multi-select" tabIndex="0" onBlur={e => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('open');
+                  }}>
+                    <div className="multi-select-trigger" onClick={e => {
+                      e.currentTarget.parentElement.classList.toggle('open');
+                    }}>
+                      {activeCount > 0 ? `${activeCount} selected` : 'All sprints'}
+                    </div>
+                    <div className="multi-select-dropdown">
+                      {sprints.map(s => (
+                        <label key={s} className="multi-select-option">
+                          <input type="checkbox" checked={sprintFilter[s] || false}
+                            onChange={e => setSprintFilter({ ...sprintFilter, [s]: e.target.checked })} />
+                          {s}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               );
