@@ -35,7 +35,7 @@ export default function Timeline({ onSelectIssue }) {
 
   // Fetch all DEV1 project issues
   useEffect(() => {
-    const jql = 'component is not EMPTY ORDER BY created DESC';
+    const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
     searchIssuesAll(jql).then(raw => {
       setIssues(raw.map(parseTimelineIssue));
       setLoading(false);
