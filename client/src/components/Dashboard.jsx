@@ -97,7 +97,8 @@ export default function Dashboard({
     const saved = loadColumnPrefs();
     if (saved) return saved;
     const defaults = {};
-    ALL_COLUMNS.forEach(c => { defaults[c.key] = true; });
+    const defaultVisible = new Set(['key','summary','status','assignee_name','reporter_name','tester_name','due_date','created']);
+    ALL_COLUMNS.forEach(c => { defaults[c.key] = defaultVisible.has(c.key); });
     return defaults;
   });
 
