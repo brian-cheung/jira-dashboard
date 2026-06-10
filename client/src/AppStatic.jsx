@@ -3,6 +3,7 @@ import Dashboard from './components/Dashboard';
 import MetricsDashboard from './components/MetricsDashboard';
 import DetailDrawer from './components/DetailDrawer';
 import CreateIssueModal from './components/CreateIssueModal';
+import Timeline from './components/Timeline';
 import StatusBadge, { getStatusColor, STATUS_ORDER } from './components/StatusBadge';
 import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
@@ -16,6 +17,7 @@ import './components/MetricsDashboard.css';
 import './components/CreateIssueModal.css';
 import './components/Setup.css';
 import './components/Toast.css';
+import './components/Timeline.css';
 
 // Simple toast inline (no socket)
 function useSimpleToast() {
@@ -84,6 +86,7 @@ function parseIssue(issue) {
     requested_by: requestedByName,
     sprint: sprintName,
     priority: f.priority ? f.priority.name : '',
+    components: (f.components || []).map(c => ({ id: c.id, name: c.name })),
     created: f.created || null,
     updated: f.updated || null,
     comments: [],
@@ -371,6 +374,71 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
   );
 }
 
+const COMPONENT_COLORS = [
+  '#6554C0', '#0052CC', '#00875A', '#E6A800',
+  '#DE350B', '#403294', '#0747A6', '#00665A',
+  '#7A5D00', '#BF2600', '#FF8B00', '#36B37E',
+];
+
+function ComponentSelector({ issues, selected, onChange }) {
+  const components = useMemo(() => {
+    const map = {};
+    for (const issue of issues) {
+      for (const c of (issue.components || [])) {
+        if (!map[c.name]) map[c.name] = { name: c.name, count: 0 };
+        map[c.name].count++;
+      }
+    }
+    return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+  }, [issues]);
+
+  const activeCount = Object.values(selected).filter(Boolean).length;
+
+  function toggleAll() {
+    if (activeCount === components.length && components.length > 0) {
+      onChange({});
+    } else {
+      const all = {};
+      components.forEach(c => { all[c.name] = true; });
+      onChange(all);
+    }
+  }
+
+  return (
+    <div className="filter-bar">
+      <div className="filter-section">
+        <div className="filter-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Components</span>
+          <button
+            onClick={toggleAll}
+            style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
+          >
+            {activeCount === components.length && components.length > 0 ? 'Deselect all' : 'Select all'}
+          </button>
+        </div>
+        <div className="component-list">
+          {components.map((c, i) => {
+            const color = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
+            const checked = selected[c.name] || false;
+            return (
+              <label key={c.name}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={e => onChange({ ...selected, [c.name]: e.target.checked })}
+                />
+                <span className="comp-color-dot" style={{ backgroundColor: color }} />
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                <span className="component-count">{c.count}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Main App
 export default function AppStatic() {
   const [config, setConfig] = useState(() => {
@@ -392,6 +460,7 @@ export default function AppStatic() {
   const [showCreate, setShowCreate] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
+  const [timelineComponents, setTimelineComponents] = useState({});
   const { toasts, addToast } = useSimpleToast();
 
   const doSync = useCallback(async (silent) => {
@@ -493,118 +562,128 @@ export default function AppStatic() {
       <div className="app-tabs">
         <button className={`app-tab ${tab === 'tickets' ? 'active' : ''}`} onClick={() => setTab('tickets')}>Tickets</button>
         <button className={`app-tab ${tab === 'metrics' ? 'active' : ''}`} onClick={() => setTab('metrics')}>Metrics</button>
+        <button className={`app-tab ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}>Timeline</button>
         <button className={`app-tab ${tab === 'setup' ? 'active' : ''}`} onClick={() => setTab('setup')}>Setup</button>
       </div>
       <div className="app-main">
         <div className="app-sidebar">
-          <div className="filter-bar">
-            <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="filter-search" />
+          {tab === 'timeline' ? (
+            <ComponentSelector
+              issues={issues}
+              selected={timelineComponents}
+              onChange={setTimelineComponents}
+            />
+          ) : (
+            <div className="filter-bar">
+              <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="filter-search" />
 
-            <div className="filter-section">
-              <div className="filter-section-label">Role</div>
-              <div className="filter-toggles">
-                {['assignee', 'reporter', 'tester'].map(role => (
-                  <label key={role} className="filter-toggle">
-                    <input type="checkbox" checked={filters[role]} onChange={e => setFilters({ ...filters, [role]: e.target.checked })} />
-                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                  </label>
-                ))}
+              <div className="filter-section">
+                <div className="filter-section-label">Role</div>
+                <div className="filter-toggles">
+                  {['assignee', 'reporter', 'tester'].map(role => (
+                    <label key={role} className="filter-toggle">
+                      <input type="checkbox" checked={filters[role]} onChange={e => setFilters({ ...filters, [role]: e.target.checked })} />
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Status chips */}
-            {(() => {
-              const allStatuses = [...new Set(issues.map(i => i.status).filter(Boolean))];
-              // Two-column layout order
-              const TWO_COL_ORDER = ['Backlog','UAT','To Do','Ready for deployment','In Progress','Done','Ready for UAT','On Hold'];
-              const ordered = [...new Set([
-                ...TWO_COL_ORDER.filter(s => allStatuses.some(a => a.toLowerCase() === s.toLowerCase())),
-                ...allStatuses.filter(a => !TWO_COL_ORDER.some(s => s.toLowerCase() === a.toLowerCase())).sort()
-              ])];
-              return (
-                <div className="filter-section">
-                  <div className="filter-section-label">Status</div>
-                  <div className="filter-chips">
-                    {ordered.map(s => {
-                      const sc = getStatusColor(s);
-                      const active = statusFilter[s];
-                      return (
-                        <button key={s} className={`filter-chip ${active ? 'active' : ''}`}
-                          onClick={() => setStatusFilter({ ...statusFilter, [s]: !active })}
-                          style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text, fontWeight: 600 } : {}}
-                        >
-                          {s}
-                        </button>
-                      );
-                    })}
+              {/* Status chips */}
+              {(() => {
+                const allStatuses = [...new Set(issues.map(i => i.status).filter(Boolean))];
+                const TWO_COL_ORDER = ['Backlog','UAT','To Do','Ready for deployment','In Progress','Done','Ready for UAT','On Hold'];
+                const ordered = [...new Set([
+                  ...TWO_COL_ORDER.filter(s => allStatuses.some(a => a.toLowerCase() === s.toLowerCase())),
+                  ...allStatuses.filter(a => !TWO_COL_ORDER.some(s => s.toLowerCase() === a.toLowerCase())).sort()
+                ])];
+                return (
+                  <div className="filter-section">
+                    <div className="filter-section-label">Status</div>
+                    <div className="filter-chips">
+                      {ordered.map(s => {
+                        const sc = getStatusColor(s);
+                        const active = statusFilter[s];
+                        return (
+                          <button key={s} className={`filter-chip ${active ? 'active' : ''}`}
+                            onClick={() => setStatusFilter({ ...statusFilter, [s]: !active })}
+                            style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text, fontWeight: 600 } : {}}
+                          >
+                            {s}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
 
-            {(() => {
-              const sprints = [...new Set(issues.flatMap(i => (i.sprint || '').split(', ').filter(Boolean)))].sort();
-              if (!sprints.length) return null;
-              const activeCount = Object.values(sprintFilter).filter(Boolean).length;
-              return (
-                <div className="filter-section">
-                  <label className="filter-section-label">Sprint</label>
-                  <div className="multi-select" tabIndex="0" onBlur={e => {
-                    if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('open');
-                  }}>
-                    <div className="multi-select-trigger" onClick={e => {
-                      e.currentTarget.parentElement.classList.toggle('open');
+              {(() => {
+                const sprints = [...new Set(issues.flatMap(i => (i.sprint || '').split(', ').filter(Boolean)))].sort();
+                if (!sprints.length) return null;
+                const activeCount = Object.values(sprintFilter).filter(Boolean).length;
+                return (
+                  <div className="filter-section">
+                    <label className="filter-section-label">Sprint</label>
+                    <div className="multi-select" tabIndex="0" onBlur={e => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('open');
                     }}>
-                      {activeCount > 0 ? `${activeCount} selected` : 'All sprints'}
-                    </div>
-                    <div className="multi-select-dropdown">
-                      {sprints.map(s => (
-                        <label key={s} className="multi-select-option">
-                          <input type="checkbox" checked={sprintFilter[s] || false}
-                            onChange={e => setSprintFilter({ ...sprintFilter, [s]: e.target.checked })} />
-                          {s}
-                        </label>
-                      ))}
+                      <div className="multi-select-trigger" onClick={e => {
+                        e.currentTarget.parentElement.classList.toggle('open');
+                      }}>
+                        {activeCount > 0 ? `${activeCount} selected` : 'All sprints'}
+                      </div>
+                      <div className="multi-select-dropdown">
+                        {sprints.map(s => (
+                          <label key={s} className="multi-select-option">
+                            <input type="checkbox" checked={sprintFilter[s] || false}
+                              onChange={e => setSprintFilter({ ...sprintFilter, [s]: e.target.checked })} />
+                            {s}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
 
-            {(() => {
-              const types = [...new Set(issues.map(i => i.issue_type).filter(Boolean))].sort();
-              return (
-                <div className="filter-section">
-                  <label className="filter-section-label">Type</label>
-                  <select className="filter-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-                    <option value="">All</option>
-                    {types.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              );
-            })()}
+              {(() => {
+                const types = [...new Set(issues.map(i => i.issue_type).filter(Boolean))].sort();
+                return (
+                  <div className="filter-section">
+                    <label className="filter-section-label">Type</label>
+                    <select className="filter-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                      <option value="">All</option>
+                      {types.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
 
-            {(() => {
-              const priorities = [...new Set(issues.map(i => i.priority).filter(Boolean))].sort();
-              return (
-                <div className="filter-section">
-                  <label className="filter-section-label">Priority</label>
-                  <select className="filter-select" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
-                    <option value="">All</option>
-                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-              );
-            })()}
+              {(() => {
+                const priorities = [...new Set(issues.map(i => i.priority).filter(Boolean))].sort();
+                return (
+                  <div className="filter-section">
+                    <label className="filter-section-label">Priority</label>
+                    <select className="filter-select" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
+                      <option value="">All</option>
+                      {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
 
-            <button className="filter-clear-btn" onClick={clearAllFilters}>Clear All Filters</button>
-          </div>
+              <button className="filter-clear-btn" onClick={clearAllFilters}>Clear All Filters</button>
+            </div>
+          )}
         </div>
         <div className="app-content">
           {tab === 'tickets' ? (
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
           ) : tab === 'metrics' ? (
             <MetricsDashboard issues={issues} onSelectIssue={setSelectedKey} />
+          ) : tab === 'timeline' ? (
+            <Timeline issues={issues} selectedComponents={timelineComponents} onSelectIssue={setSelectedKey} />
           ) : (
             <div className="setup">
               <div className="setup-section">

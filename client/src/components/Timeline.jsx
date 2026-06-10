@@ -1,105 +1,79 @@
-import { useState, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import Gantt from 'frappe-gantt';
-import { searchIssuesAll } from '../jira-client';
-import { getConfig } from '../jira-client';
 import './Timeline.css';
 
-export default function Timeline({ onSelectIssue }) {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+const COMPONENT_COLORS = [
+  '#6554C0', '#0052CC', '#00875A', '#E6A800',
+  '#DE350B', '#403294', '#0747A6', '#00665A',
+  '#7A5D00', '#BF2600', '#FF8B00', '#36B37E',
+];
+
+export default function Timeline({ issues, selectedComponents, onSelectIssue }) {
   const containerRef = useRef(null);
   const ganttRef = useRef(null);
 
-  useEffect(() => {
-    const cfg = getConfig();
-    if (!cfg.url) return;
+  const activeNames = useMemo(
+    () => Object.entries(selectedComponents).filter(([, v]) => v).map(([k]) => k),
+    [selectedComponents]
+  );
 
-    const year = new Date().getFullYear();
-    const jql = `project = DEV1 AND created >= "${year}-01-01" ORDER BY created`;
+  const tasks = useMemo(() => {
+    if (activeNames.length === 0) return [];
 
-    searchIssuesAll(jql).then(issues => {
-      // Group by Epic
-      const epicMap = {};
-      const orphans = [];
+    const filtered = issues.filter(i =>
+      i.components && i.components.some(c => selectedComponents[c.name])
+    );
 
-      for (const issue of issues) {
-        const f = issue.fields || {};
-        const epicKey = f.epic ? f.epic.key : null;
-        const parentKey = f.parent ? f.parent.key : null;
-
-        if (epicKey) {
-          if (!epicMap[epicKey]) epicMap[epicKey] = { children: [] };
-          epicMap[epicKey].children.push(issue);
-        } else if (f.issuetype && f.issuetype.name === 'Epic') {
-          if (!epicMap[issue.key]) epicMap[issue.key] = { epic: issue, children: [] };
-          epicMap[issue.key].epic = issue;
-        } else if (parentKey) {
-          // Might be a child of an Epic via parent
-          if (!epicMap[parentKey]) epicMap[parentKey] = { children: [] };
-          epicMap[parentKey].children.push(issue);
-        } else {
-          orphans.push(issue);
-        }
-      }
-
-      // Build Gantt tasks: one per Epic
-      const ganttTasks = [];
-
-      for (const [key, group] of Object.entries(epicMap)) {
-        const children = group.children || [];
-        if (children.length === 0) continue;
-
-        // Find date range
-        let minStart = null, maxEnd = null;
-        for (const c of children) {
-          const f = c.fields || {};
-          const start = f.duedate || null;
-          const end = f.duedate || null;
-          if (start && (!minStart || start < minStart)) minStart = start;
-          if (end && (!maxEnd || end > maxEnd)) maxEnd = end;
-        }
-        if (!minStart) minStart = new Date().toISOString().split('T')[0];
-        if (!maxEnd || maxEnd < minStart) maxEnd = minStart;
-
-        const epicName = group.epic ? group.epic.fields.summary : key;
-        const doneCount = children.filter(c => (c.fields.status?.statusCategory?.name || '') === 'Done').length;
-        const progress = children.length > 0 ? Math.round((doneCount / children.length) * 100) : 0;
-
-        ganttTasks.push({
-          id: key,
-          name: `${key}: ${epicName} (${children.length})`,
-          start: minStart.split('T')[0],
-          end: maxEnd.split('T')[0],
-          progress,
-          dependencies: '',
-          custom_class: 'gantt-epic-row'
-        });
-      }
-
-      // Also add orphans as individual tasks
-      for (const issue of orphans) {
-        const f = issue.fields || {};
-        const start = f.duedate || new Date().toISOString().split('T')[0];
-        const end = f.duedate || start;
-        ganttTasks.push({
-          id: issue.key,
-          name: `${issue.key}: ${f.summary || ''}`,
-          start: start.split('T')[0],
-          end: end.split('T')[0],
-          progress: (f.status?.statusCategory?.name || '') === 'Done' ? 100 : 0,
-          dependencies: '',
-        });
-      }
-
-      setTasks(ganttTasks);
-      setLoading(false);
-    }).catch(err => {
-      setError(err.message);
-      setLoading(false);
+    // Sort by start date
+    const sorted = [...filtered].sort((a, b) => {
+      const sa = a.start_date || a.due_date || '';
+      const sb = b.start_date || b.due_date || '';
+      return sa.localeCompare(sb);
     });
-  }, []);
 
+    return sorted.map(issue => {
+      const start = issue.start_date || issue.due_date || '';
+      const end = issue.due_date || issue.start_date || '';
+      const compName = (issue.components || []).find(c => selectedComponents[c.name])?.name || '';
+      const done = issue.status_category === 'Done';
+
+      return {
+        id: issue.key,
+        name: `${issue.key}: ${issue.summary}`,
+        start: start.split('T')[0],
+        end: end.split('T')[0],
+        progress: done ? 100 : 0,
+        dependencies: '',
+        custom_class: `gantt-comp-${compName.replace(/[^a-zA-Z0-9]/g, '_')}`,
+      };
+    }).filter(t => t.start && t.end);
+  }, [issues, selectedComponents, activeNames]);
+
+  // Inject dynamic CSS for component bar colors
+  useEffect(() => {
+    const styleId = 'gantt-comp-styles';
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    const colorMap = {};
+    activeNames.forEach((c, i) => {
+      colorMap[c] = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
+    });
+    styleEl.textContent = Object.entries(colorMap)
+      .map(([name, color]) =>
+        `.gantt-comp-${name.replace(/[^a-zA-Z0-9]/g, '_')} .bar { fill: ${color}; }`
+      ).join('\n');
+
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) el.textContent = '';
+    };
+  }, [activeNames]);
+
+  // Render Gantt
   useEffect(() => {
     if (!containerRef.current || tasks.length === 0) return;
     if (ganttRef.current) { containerRef.current.innerHTML = ''; }
@@ -122,13 +96,14 @@ export default function Timeline({ onSelectIssue }) {
     };
   }, [tasks]);
 
-  if (loading) return <div className="timeline-loading">Loading timeline...</div>;
-  if (error) return <div className="timeline-error">Failed: {error}</div>;
+  if (activeNames.length === 0) {
+    return <div className="timeline-empty">Select one or more components to view the timeline.</div>;
+  }
 
   return (
     <div className="timeline">
       <div className="timeline-header">
-        <span>{tasks.length} epics this year</span>
+        <span>{tasks.length} item{tasks.length !== 1 ? 's' : ''} across {activeNames.length} component{activeNames.length !== 1 ? 's' : ''}</span>
       </div>
       <div ref={containerRef} className="timeline-gantt" />
     </div>
