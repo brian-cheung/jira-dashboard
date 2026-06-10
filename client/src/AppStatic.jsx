@@ -374,71 +374,6 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
   );
 }
 
-const COMPONENT_COLORS = [
-  '#6554C0', '#0052CC', '#00875A', '#E6A800',
-  '#DE350B', '#403294', '#0747A6', '#00665A',
-  '#7A5D00', '#BF2600', '#FF8B00', '#36B37E',
-];
-
-function ComponentSelector({ issues, selected, onChange }) {
-  const components = useMemo(() => {
-    const map = {};
-    for (const issue of issues) {
-      for (const c of (issue.components || [])) {
-        if (!map[c.name]) map[c.name] = { name: c.name, count: 0 };
-        map[c.name].count++;
-      }
-    }
-    return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
-  }, [issues]);
-
-  const activeCount = Object.values(selected).filter(Boolean).length;
-
-  function toggleAll() {
-    if (activeCount === components.length && components.length > 0) {
-      onChange({});
-    } else {
-      const all = {};
-      components.forEach(c => { all[c.name] = true; });
-      onChange(all);
-    }
-  }
-
-  return (
-    <div className="filter-bar">
-      <div className="filter-section">
-        <div className="filter-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Components</span>
-          <button
-            onClick={toggleAll}
-            style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
-          >
-            {activeCount === components.length && components.length > 0 ? 'Deselect all' : 'Select all'}
-          </button>
-        </div>
-        <div className="component-list">
-          {components.map((c, i) => {
-            const color = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
-            const checked = selected[c.name] || false;
-            return (
-              <label key={c.name}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={e => onChange({ ...selected, [c.name]: e.target.checked })}
-                />
-                <span className="comp-color-dot" style={{ backgroundColor: color }} />
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                <span className="component-count">{c.count}</span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Main App
 export default function AppStatic() {
   const [config, setConfig] = useState(() => {
@@ -460,7 +395,6 @@ export default function AppStatic() {
   const [showCreate, setShowCreate] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
-  const [timelineComponents, setTimelineComponents] = useState({});
   const { toasts, addToast } = useSimpleToast();
 
   const doSync = useCallback(async (silent) => {
@@ -575,13 +509,7 @@ export default function AppStatic() {
       </div>
       <div className="app-main">
         <div className="app-sidebar">
-          {tab === 'timeline' ? (
-            <ComponentSelector
-              issues={issues}
-              selected={timelineComponents}
-              onChange={setTimelineComponents}
-            />
-          ) : (
+          {tab !== 'timeline' && (
             <div className="filter-bar">
               <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="filter-search" />
 
@@ -691,7 +619,7 @@ export default function AppStatic() {
           ) : tab === 'metrics' ? (
             <MetricsDashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} />
           ) : tab === 'timeline' ? (
-            <Timeline issues={issues} selectedComponents={timelineComponents} onSelectIssue={setSelectedKey} />
+            <Timeline onSelectIssue={setSelectedKey} />
           ) : (
             <div className="setup">
               <div className="setup-section">
