@@ -681,7 +681,7 @@ export default function AppStatic() {
           {tab === 'tickets' ? (
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
           ) : tab === 'metrics' ? (
-            <MetricsDashboard issues={issues} onSelectIssue={setSelectedKey} />
+            <MetricsDashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} />
           ) : tab === 'timeline' ? (
             <Timeline issues={issues} selectedComponents={timelineComponents} onSelectIssue={setSelectedKey} />
           ) : (

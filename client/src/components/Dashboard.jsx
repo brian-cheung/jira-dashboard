@@ -59,6 +59,31 @@ function buildTree(issues) {
   return { roots, map };
 }
 
+const ALL_COLUMNS = [
+  { key: 'key', label: 'Key' },
+  { key: 'summary', label: 'Summary' },
+  { key: 'status', label: 'Status' },
+  { key: 'assignee_name', label: 'Assignee' },
+  { key: 'reporter_name', label: 'Reporter' },
+  { key: 'tester_name', label: 'Tester' },
+  { key: 'due_date', label: 'Due Date' },
+  { key: 'created', label: 'Created' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'issue_type', label: 'Type' },
+  { key: 'sprint', label: 'Sprint' },
+  { key: 'fix_versions', label: 'Fix Versions' },
+];
+
+function loadColumnPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem('visibleColumns') || 'null');
+  } catch { return null; }
+}
+
+function saveColumnPrefs(cols) {
+  localStorage.setItem('visibleColumns', JSON.stringify(cols));
+}
+
 export default function Dashboard({
   issues, filters, statusFilter, sprintFilter, typeFilter, priorityFilter,
   search, onSelectIssue, selectedKey
@@ -67,6 +92,20 @@ export default function Dashboard({
   const [sortDir, setSortDir] = useState('desc');
   const [hierarchyView, setHierarchyView] = useState(true);
   const [collapsed, setCollapsed] = useState({});
+  const [colPickerOpen, setColPickerOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = loadColumnPrefs();
+    if (saved) return saved;
+    const defaults = {};
+    ALL_COLUMNS.forEach(c => { defaults[c.key] = true; });
+    return defaults;
+  });
+
+  function toggleColumn(key) {
+    const next = { ...visibleColumns, [key]: !visibleColumns[key] };
+    setVisibleColumns(next);
+    saveColumnPrefs(next);
+  }
 
   const filtered = useMemo(() => {
     return issues.filter(i => {
@@ -154,15 +193,32 @@ export default function Dashboard({
             <input type="checkbox" checked={hierarchyView} onChange={e => setHierarchyView(e.target.checked)} />
             Hierarchy
           </label>
+          <div className="dash-col-picker" style={{ position: 'relative' }}>
+            <button className="dash-btn" onClick={() => setColPickerOpen(!colPickerOpen)}>Columns</button>
+            {colPickerOpen && (
+              <div className="col-picker-dropdown" onMouseLeave={() => setColPickerOpen(false)}>
+                {ALL_COLUMNS.map(c => (
+                  <label key={c.key} className="col-picker-option">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns[c.key]}
+                      onChange={() => toggleColumn(c.key)}
+                    />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="dash-table-wrap">
         <table className="dash-table">
           <thead>
             <tr>
-              {Object.entries(SORT_FIELDS).map(([field, label]) => (
-                <th key={field} onClick={() => handleSort(field)} className={!hierarchyView && sortField === field ? `sorted-${sortDir}` : ''}>
-                  {label} {!hierarchyView && sortField === field ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+              {ALL_COLUMNS.filter(c => visibleColumns[c.key]).map(c => (
+                <th key={c.key} onClick={() => handleSort(c.key)} className={!hierarchyView && sortField === c.key ? `sorted-${sortDir}` : ''}>
+                  {c.label} {!hierarchyView && sortField === c.key ? (sortDir === 'asc' ? '▲' : '▼') : ''}
                 </th>
               ))}
             </tr>
@@ -177,25 +233,27 @@ export default function Dashboard({
                   style={{ borderLeft: `3px solid ${typeColor}` }}
                   onClick={() => onSelectIssue(i.key)}
                 >
-                  <td className="dash-key" style={{ paddingLeft: i.depth * 16 + 8 }}>
-                    <span className="dash-expand" onClick={e => i.hasChildren && toggleCollapse(i.key, e)}>
-                      {i.hasChildren ? (collapsed[i.key] ? '▶' : '▼') : ''}
-                    </span>
-                    <a href={`https://executivecentre.atlassian.net/browse/${i.key}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                      {i.key}
-                    </a>
-                  </td>
-                  <td className="dash-summary">{i.summary}</td>
-                  <td><StatusBadge status={i.status} /></td>
-                  <td>{i.assignee_name || '-'}</td>
-                  <td>{i.reporter_name || '-'}</td>
-                  <td>{i.tester_name || '-'}</td>
-                  <td className="dash-date">{i.due_date ? i.due_date.split('T')[0] : '-'}</td>
-                  <td className="dash-date">{i.created ? i.created.split('T')[0] : '-'}</td>
-                  <td>{i.priority || '-'}</td>
-                  <td>{i.issue_type || '-'}</td>
-                  <td className="dash-sprint">{i.sprint || '-'}</td>
-                  <td>{i.fix_versions || '-'}</td>
+                  {visibleColumns.key && (
+                    <td className="dash-key" style={{ paddingLeft: i.depth * 16 + 8 }}>
+                      <span className="dash-expand" onClick={e => i.hasChildren && toggleCollapse(i.key, e)}>
+                        {i.hasChildren ? (collapsed[i.key] ? '▶' : '▼') : ''}
+                      </span>
+                      <a href={`https://executivecentre.atlassian.net/browse/${i.key}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                        {i.key}
+                      </a>
+                    </td>
+                  )}
+                  {visibleColumns.summary && <td className="dash-summary">{i.summary}</td>}
+                  {visibleColumns.status && <td><StatusBadge status={i.status} /></td>}
+                  {visibleColumns.assignee_name && <td>{i.assignee_name || '-'}</td>}
+                  {visibleColumns.reporter_name && <td>{i.reporter_name || '-'}</td>}
+                  {visibleColumns.tester_name && <td>{i.tester_name || '-'}</td>}
+                  {visibleColumns.due_date && <td className="dash-date">{i.due_date ? i.due_date.split('T')[0] : '-'}</td>}
+                  {visibleColumns.created && <td className="dash-date">{i.created ? i.created.split('T')[0] : '-'}</td>}
+                  {visibleColumns.priority && <td>{i.priority || '-'}</td>}
+                  {visibleColumns.issue_type && <td>{i.issue_type || '-'}</td>}
+                  {visibleColumns.sprint && <td className="dash-sprint">{i.sprint || '-'}</td>}
+                  {visibleColumns.fix_versions && <td>{i.fix_versions || '-'}</td>}
                 </tr>
               );
             })}

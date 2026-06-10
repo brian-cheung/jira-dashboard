@@ -2,7 +2,34 @@ import { useMemo } from 'react';
 import StatusBadge, { getStatusColor } from './StatusBadge';
 import './MetricsDashboard.css';
 
-export default function MetricsDashboard({ issues, onSelectIssue }) {
+export default function MetricsDashboard({
+  issues, onSelectIssue,
+  search, filters, statusFilter, sprintFilter, typeFilter, priorityFilter,
+}) {
+  const filtered = useMemo(() => {
+    return issues.filter(i => {
+      const matchesSearch = !search ||
+        i.key.toLowerCase().includes(search.toLowerCase()) ||
+        (i.summary || '').toLowerCase().includes(search.toLowerCase());
+
+      const roleChecks = [];
+      if (filters.assignee) roleChecks.push(i.assignee_name);
+      if (filters.reporter) roleChecks.push(i.reporter_name);
+      if (filters.tester) roleChecks.push(i.tester_name);
+      const matchesRole = roleChecks.length === 0 || roleChecks.some(Boolean);
+
+      const activeStatuses = Object.entries(statusFilter || {}).filter(([, v]) => v).map(([k]) => k.toLowerCase());
+      const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes((i.status || '').toLowerCase());
+
+      const activeSprints = Object.entries(sprintFilter || {}).filter(([, v]) => v).map(([k]) => k);
+      const matchesSprint = activeSprints.length === 0 || (i.sprint && activeSprints.some(s => i.sprint.includes(s)));
+      const matchesType = !typeFilter || i.issue_type === typeFilter;
+      const matchesPriority = !priorityFilter || i.priority === priorityFilter;
+
+      return matchesSearch && matchesRole && matchesStatus && matchesSprint && matchesType && matchesPriority;
+    });
+  }, [issues, search, filters, statusFilter, sprintFilter, typeFilter, priorityFilter]);
+
   const metrics = useMemo(() => {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -16,7 +43,7 @@ export default function MetricsDashboard({ issues, onSelectIssue }) {
     let blocked = [];
     let recent = [];
 
-    for (const i of issues) {
+    for (const i of filtered) {
       byStatus[i.status] = (byStatus[i.status] || 0) + 1;
       const a = i.assignee_name || 'Unassigned';
       byAssignee[a] = (byAssignee[a] || 0) + 1;
@@ -42,7 +69,7 @@ export default function MetricsDashboard({ issues, onSelectIssue }) {
     }
 
     const statusKeys = Object.keys(byStatus).sort();
-    const total = issues.length;
+    const total = filtered.length;
     const done = byStatus['Done'] || 0;
     const open = total - done;
     const assigneeSorted = Object.entries(byAssignee).sort((a, b) => b[1] - a[1]);
@@ -54,7 +81,7 @@ export default function MetricsDashboard({ issues, onSelectIssue }) {
       byStatus, statusKeys, byType, byPriority,
       assigneeSorted, maxAssignee,
     };
-  }, [issues]);
+  }, [filtered]);
 
   const needsAttention = useMemo(() => {
     const seen = new Set();
