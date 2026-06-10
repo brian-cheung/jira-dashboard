@@ -557,6 +557,7 @@ export default function AppStatic() {
           </span>
           <button className="sync-btn" onClick={() => setShowCreate(true)}>+ New Issue</button>
           <button className="sync-btn" onClick={() => doSync(false)} disabled={syncing}>{syncing ? 'Syncing...' : 'Sync Now'}</button>
+          <button className="sync-btn" onClick={() => window.location.reload()}>Refresh</button>
         </div>
       </header>
       <div className="app-tabs">
