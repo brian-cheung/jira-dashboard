@@ -540,7 +540,14 @@ export default function AppStatic() {
 
   function clearAllFilters() {
     setFilters({ assignee: true, reporter: true, tester: true });
-    setStatusFilter({});
+    const defaults = {};
+    const TWO_COL_ORDER = ['Backlog','UAT','To Do','Ready for deployment','In Progress','Done','Ready for UAT','On Hold'];
+    for (const i of issues) {
+      if (!i.status) continue;
+      const norm = TWO_COL_ORDER.find(s => s.toLowerCase() === i.status.toLowerCase()) || i.status;
+      if (norm.toLowerCase() !== 'done') defaults[norm] = true;
+    }
+    setStatusFilter(defaults);
     setSprintFilter({});
     setTypeFilter('');
     setPriorityFilter('');
