@@ -1,12 +1,14 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Gantt from 'frappe-gantt';
 import { searchIssuesAll, getConfig } from '../jira-client';
 import './Timeline.css';
 
+// Distinct from TYPE_COLORS (purple/green/blue/red) — warm/earth tones for components
 const COMPONENT_COLORS = [
-  '#6554C0', '#0052CC', '#00875A', '#E6A800',
-  '#DE350B', '#403294', '#0747A6', '#00665A',
-  '#7A5D00', '#BF2600', '#FF8B00', '#36B37E',
+  '#E67E22', '#8E44AD', '#2ECC71', '#E74C3C',
+  '#1ABC9C', '#F39C12', '#3498DB', '#E91E63',
+  '#00BCD4', '#FF5722', '#9C27B0', '#4CAF50',
+  '#FF9800', '#673AB7', '#009688', '#F44336',
 ];
 
 function parseTimelineIssue(issue) {
@@ -21,6 +23,7 @@ function parseTimelineIssue(issue) {
     status_category: f.status && f.status.statusCategory ? f.status.statusCategory.name : '',
     start_date: startDateKey ? f[startDateKey] : null,
     due_date: f.duedate || null,
+    issue_type: f.issuetype ? f.issuetype.name : '',
     components: (f.components || []).map(c => ({ id: c.id, name: c.name })),
   };
 }
@@ -30,10 +33,10 @@ export default function Timeline({ onSelectIssue }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedComponents, setSelectedComponents] = useState({});
+  const [expandedComponents, setExpandedComponents] = useState({});
   const containerRef = useRef(null);
   const ganttRef = useRef(null);
 
-  // Fetch all DEV1 project issues
   useEffect(() => {
     const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
     searchIssuesAll(jql).then(raw => {
@@ -45,13 +48,13 @@ export default function Timeline({ onSelectIssue }) {
     });
   }, []);
 
-  // Build component list
   const allComponents = useMemo(() => {
     const map = {};
     for (const issue of issues) {
       for (const c of (issue.components || [])) {
-        if (!map[c.name]) map[c.name] = { name: c.name, count: 0 };
+        if (!map[c.name]) map[c.name] = { name: c.name, count: 0, issues: [] };
         map[c.name].count++;
+        map[c.name].issues.push(issue);
       }
     }
     return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
@@ -64,7 +67,7 @@ export default function Timeline({ onSelectIssue }) {
 
   const activeCount = activeNames.length;
 
-  function toggleAll() {
+  const toggleAll = useCallback(() => {
     if (activeCount === allComponents.length && allComponents.length > 0) {
       setSelectedComponents({});
     } else {
@@ -72,9 +75,12 @@ export default function Timeline({ onSelectIssue }) {
       allComponents.forEach(c => { all[c.name] = true; });
       setSelectedComponents(all);
     }
-  }
+  }, [activeCount, allComponents]);
 
-  // Build Gantt tasks
+  const toggleExpand = useCallback((name) => {
+    setExpandedComponents(prev => ({ ...prev, [name]: !prev[name] }));
+  }, []);
+
   const tasks = useMemo(() => {
     if (activeNames.length === 0) return [];
 
@@ -104,7 +110,7 @@ export default function Timeline({ onSelectIssue }) {
         custom_class: `gantt-comp-${compName.replace(/[^a-zA-Z0-9]/g, '_')}`,
       };
     }).filter(t => t.start && t.end);
-  }, [issues, selectedComponents, activeNames]);
+  }, [issues, selectedComponents]);
 
   // Inject dynamic CSS for component bar colors
   useEffect(() => {
@@ -132,24 +138,33 @@ export default function Timeline({ onSelectIssue }) {
 
   // Render Gantt
   useEffect(() => {
-    if (!containerRef.current || tasks.length === 0) return;
-    if (ganttRef.current) { containerRef.current.innerHTML = ''; }
+    if (!containerRef.current || tasks.length === 0) {
+      if (ganttRef.current) { ganttRef.current = null; }
+      return;
+    }
 
-    ganttRef.current = new Gantt(containerRef.current, tasks, {
-      view_mode: 'Month',
-      date_format: 'YYYY-MM-DD',
-      bar_height: 24,
-      padding: 18,
-      on_click: (task) => {
-        onSelectIssue(task.id);
-      },
-      custom_popup_html: (task) => {
-        return `<div class="gantt-popup"><strong>${task.id}</strong><br/>${task.name}<br/>Progress: ${task.progress}%</div>`;
-      }
-    });
+    containerRef.current.innerHTML = '';
+
+    try {
+      ganttRef.current = new Gantt(containerRef.current, tasks, {
+        view_mode: 'Month',
+        date_format: 'YYYY-MM-DD',
+        bar_height: 24,
+        padding: 18,
+        on_click: (task) => {
+          onSelectIssue(task.id);
+        },
+        custom_popup_html: (task) => {
+          return `<div class="gantt-popup"><strong>${task.id}</strong><br/>${task.name}<br/>Progress: ${task.progress}%</div>`;
+        }
+      });
+    } catch (e) {
+      console.error('Gantt render error:', e);
+    }
 
     return () => {
-      if (ganttRef.current) { containerRef.current.innerHTML = ''; ganttRef.current = null; }
+      if (containerRef.current) containerRef.current.innerHTML = '';
+      ganttRef.current = null;
     };
   }, [tasks]);
 
@@ -173,17 +188,50 @@ export default function Timeline({ onSelectIssue }) {
             {allComponents.map((c, i) => {
               const color = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
               const checked = selectedComponents[c.name] || false;
+              const expanded = expandedComponents[c.name] || false;
+              const compIssues = (c.issues || []).sort((a, b) => {
+                const sa = a.start_date || a.due_date || '';
+                const sb = b.start_date || b.due_date || '';
+                return sa.localeCompare(sb);
+              });
               return (
-                <label key={c.name}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={e => setSelectedComponents({ ...selectedComponents, [c.name]: e.target.checked })}
-                  />
-                  <span className="comp-color-dot" style={{ backgroundColor: color }} />
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                  <span className="component-count">{c.count}</span>
-                </label>
+                <div key={c.name} className="comp-group">
+                  <div className="comp-row">
+                    <span
+                      className={`comp-arrow ${expanded ? 'expanded' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); toggleExpand(c.name); }}
+                    >
+                      {expanded ? '▼' : '▶'}
+                    </span>
+                    <label className="comp-label">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={e => setSelectedComponents({ ...selectedComponents, [c.name]: e.target.checked })}
+                      />
+                      <span className="comp-color-dot" style={{ backgroundColor: color }} />
+                      <span className="comp-name">{c.name}</span>
+                      <span className="component-count">{c.count}</span>
+                    </label>
+                  </div>
+                  {expanded && (
+                    <div className="comp-issues">
+                      {compIssues.map(issue => (
+                        <div
+                          key={issue.key}
+                          className="comp-issue-item"
+                          onClick={() => onSelectIssue(issue.key)}
+                        >
+                          <span className="comp-issue-key">{issue.key}</span>
+                          <span className="comp-issue-summary">{issue.summary}</span>
+                          <span className="comp-issue-date">
+                            {issue.start_date ? issue.start_date.split('T')[0] : (issue.due_date ? issue.due_date.split('T')[0] : '-')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             })}
             {allComponents.length === 0 && <div style={{ padding: 8, fontSize: 11, color: '#6B778C' }}>No components found</div>}

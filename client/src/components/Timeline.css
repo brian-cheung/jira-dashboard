@@ -52,25 +52,54 @@
 .component-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
 }
-.component-list label {
+.comp-group {
+  border-radius: 4px;
+  overflow: hidden;
+}
+.comp-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.comp-row:hover {
+  background: #F4F5F7;
+}
+.comp-arrow {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  color: #6B778C;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  transition: color 0.1s;
+}
+.comp-arrow:hover {
+  color: #172B4D;
+}
+.comp-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: #172B4D;
-  border-radius: 4px;
   cursor: pointer;
-  transition: background 0.1s;
+  padding: 5px 4px;
+  border-radius: 4px;
 }
-.component-list label:hover {
-  background: #F4F5F7;
-}
-.component-list input[type="checkbox"] {
+.comp-label input[type="checkbox"] {
   margin: 0;
   accent-color: #0052CC;
   flex-shrink: 0;
@@ -81,9 +110,52 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
+.comp-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .component-count {
   font-size: 10px;
   color: #6B778C;
+  flex-shrink: 0;
   margin-left: auto;
+}
+.comp-issues {
+  padding: 2px 0 4px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.comp-issue-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 10px;
+  color: #42526E;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.comp-issue-item:hover {
+  background: #EBECF0;
+}
+.comp-issue-key {
+  font-family: monospace;
+  font-size: 9px;
+  color: #0052CC;
+  flex-shrink: 0;
+}
+.comp-issue-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comp-issue-date {
+  font-size: 9px;
+  color: #6B778C;
   flex-shrink: 0;
 }
