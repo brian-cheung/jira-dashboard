@@ -307,8 +307,6 @@ export default function Timeline({ onSelectIssue }) {
           }
           // Hide the original date group in the scrollable SVG
           dateGroup.setAttribute('visibility', 'hidden');
-          // Sync scroll initially
-          pinned.scrollLeft = ganttContainerRef.current?.scrollLeft || 0;
         }
       });
     } catch (e) {
@@ -321,18 +319,6 @@ export default function Timeline({ onSelectIssue }) {
     };
   }, [tasks, issueColors]);
 
-  // Sync Gantt horizontal scroll with pinned header
-  useEffect(() => {
-    const container = ganttContainerRef.current;
-    if (!container || tasks.length === 0) return;
-    const pinned = headerRef.current;
-    if (!pinned) return;
-    const onScroll = () => { pinned.scrollLeft = container.scrollLeft; };
-    container.addEventListener('scroll', onScroll, { passive: true });
-    // Initial sync
-    pinned.scrollLeft = container.scrollLeft;
-    return () => container.removeEventListener('scroll', onScroll);
-  }, [tasks]);
 
   if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
   if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
@@ -417,10 +403,12 @@ export default function Timeline({ onSelectIssue }) {
               <span>{tasks.length} item{tasks.length !== 1 ? 's' : ''} across {activeNames.length} component{activeNames.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="timeline-gantt-wrap">
-              <div className="gantt-header-pinned" ref={headerRef}>
-                <svg xmlns="http://www.w3.org/2000/svg"></svg>
+              <div className="timeline-gantt-scroll">
+                <div className="gantt-header-pinned" ref={headerRef}>
+                  <svg xmlns="http://www.w3.org/2000/svg"></svg>
+                </div>
+                <div ref={ganttContainerRef} className="timeline-gantt" />
               </div>
-              <div ref={ganttContainerRef} className="timeline-gantt" />
             </div>
           </>
         )}
