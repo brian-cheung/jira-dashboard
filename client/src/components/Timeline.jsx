@@ -193,6 +193,28 @@ export default function Timeline({ onSelectIssue }) {
     }).filter(t => t.start && t.end);
   }, [issues, selectedComponents]);
 
+  // Inject CSS for bar colors
+  useEffect(() => {
+    const styleId = 'gantt-comp-styles';
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    const rules = [];
+    for (const [key, color] of Object.entries(issueColors)) {
+      // Use data-id attribute selector to target the bar
+      rules.push(`.bar-wrapper[data-id="${key}"] .bar { fill: ${color} !important; }`);
+    }
+    styleEl.textContent = rules.join('\n');
+
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) el.textContent = '';
+    };
+  }, [issueColors]);
+
   // Render Gantt
   useEffect(() => {
     if (!containerRef.current || tasks.length === 0) {
@@ -216,17 +238,19 @@ export default function Timeline({ onSelectIssue }) {
         }
       });
 
-      // Directly set bar fill colors from issueColors
-      setTimeout(() => {
+      // Apply colors directly as inline styles
+      requestAnimationFrame(() => {
+        if (!containerRef.current) return;
         const wrappers = containerRef.current.querySelectorAll('.bar-wrapper');
-        wrappers.forEach(w => {
+        for (const w of wrappers) {
           const taskId = w.getAttribute('data-id');
-          if (taskId && issueColors[taskId]) {
+          const color = taskId && issueColors[taskId];
+          if (color) {
             const bar = w.querySelector('.bar');
-            if (bar) bar.setAttribute('fill', issueColors[taskId]);
+            if (bar) bar.style.fill = color;
           }
-        });
-      }, 50);
+        }
+      });
     } catch (e) {
       console.error('Gantt render error:', e);
     }
