@@ -126,16 +126,14 @@ export default function Timeline({ onSelectIssue }) {
     setExpandedComponents(prev => ({ ...prev, [name]: !prev[name] }));
   }, []);
 
-  // Shared issue→color map used by both Gantt and sidebar
+  // Shared issue→color map used by both Gantt bars and sidebar issue dots
   const SHADE_COUNT = 5;
 
-  const { shadeStyles, issueColors } = useMemo(() => {
-    if (activeNames.length === 0) return { shadeStyles: {}, issueColors: {} };
+  const issueColors = useMemo(() => {
+    if (activeNames.length === 0) return {};
 
-    const styles = {};
     const colors = {}; // issue.key → color
 
-    // Build sorted issue list per selected component
     const filtered = issues.filter(i =>
       i.components && i.components.some(c => selectedComponents[c.name])
     );
@@ -157,15 +155,13 @@ export default function Timeline({ onSelectIssue }) {
       const ci = allComponents.findIndex(c => c.name === compName);
       const base = COMPONENT_COLORS[ci >= 0 ? ci % COMPONENT_COLORS.length : 0];
       const shades = shadeVariants(base, SHADE_COUNT);
-      styles[compName] = { shades, base };
 
       for (let idx = 0; idx < sorted.length; idx++) {
-        const shadeIdx = idx % SHADE_COUNT;
-        colors[sorted[idx].key] = shades[shadeIdx];
+        colors[sorted[idx].key] = shades[idx % SHADE_COUNT];
       }
     }
 
-    return { shadeStyles: styles, issueColors: colors };
+    return colors;
   }, [activeNames, issues, selectedComponents, allComponents]);
 
   const tasks = useMemo(() => {
@@ -175,71 +171,27 @@ export default function Timeline({ onSelectIssue }) {
       i.components && i.components.some(c => selectedComponents[c.name])
     );
 
-    // Group by primary component, assign shade indices within each group
-    const byComp = {};
-    for (const issue of filtered) {
-      const compName = (issue.components || []).find(c => selectedComponents[c.name])?.name || '';
-      if (!byComp[compName]) byComp[compName] = [];
-      byComp[compName].push(issue);
-    }
+    const sorted = [...filtered].sort((a, b) => {
+      const sa = a.start_date || a.due_date || '';
+      const sb = b.start_date || b.due_date || '';
+      return sa.localeCompare(sb);
+    });
 
-    const tasks = [];
-    for (const [compName, compIssues] of Object.entries(byComp)) {
-      const sorted = compIssues.sort((a, b) => {
-        const sa = a.start_date || a.due_date || '';
-        const sb = b.start_date || b.due_date || '';
-        return sa.localeCompare(sb);
-      });
+    return sorted.map(issue => {
+      const start = issue.start_date || issue.due_date || '';
+      const end = issue.due_date || issue.start_date || '';
+      const done = issue.status_category === 'Done';
 
-      const info = shadeStyles[compName];
-      const shadeCount = info ? info.shades.length : 5;
-
-      for (let idx = 0; idx < sorted.length; idx++) {
-        const issue = sorted[idx];
-        const start = issue.start_date || issue.due_date || '';
-        const end = issue.due_date || issue.start_date || '';
-        const done = issue.status_category === 'Done';
-        const shadeIdx = idx % shadeCount;
-        const safeName = compName.replace(/[^a-zA-Z0-9]/g, '_');
-
-        tasks.push({
-          id: issue.key,
-          name: `${issue.key}: ${issue.summary}`,
-          start: start.split('T')[0],
-          end: end.split('T')[0],
-          progress: done ? 100 : 0,
-          dependencies: '',
-          custom_class: `gantt-comp-${safeName}-${shadeIdx}`,
-        });
-      }
-    }
-
-    return tasks.filter(t => t.start && t.end);
-  }, [issues, selectedComponents, shadeStyles]);
-
-  // Inject dynamic CSS for component bar shades
-  useEffect(() => {
-    const styleId = 'gantt-comp-styles';
-    let styleEl = document.getElementById(styleId);
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = styleId;
-      document.head.appendChild(styleEl);
-    }
-    let css = '';
-    for (const [name, info] of Object.entries(shadeStyles)) {
-      const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
-      for (let i = 0; i < info.shades.length; i++) {
-        css += `.gantt-comp-${safeName}-${i} .bar { fill: ${info.shades[i]} !important; }\n`;
-      }
-    }
-    styleEl.textContent = css;
-
-    return () => {
-      const el = document.getElementById(styleId);
-      if (el) el.textContent = '';
-    };
-  }, [shadeStyles]);
+      return {
+        id: issue.key,
+        name: `${issue.key}: ${issue.summary}`,
+        start: start.split('T')[0],
+        end: end.split('T')[0],
+        progress: done ? 100 : 0,
+        dependencies: '',
+      };
+    }).filter(t => t.start && t.end);
+  }, [issues, selectedComponents]);
 
   // Render Gantt
   useEffect(() => {
@@ -263,6 +215,18 @@ export default function Timeline({ onSelectIssue }) {
           return `<div class="gantt-popup"><strong>${task.id}</strong><br/>${task.name}<br/>Progress: ${task.progress}%</div>`;
         }
       });
+
+      // Directly set bar fill colors from issueColors
+      setTimeout(() => {
+        const wrappers = containerRef.current.querySelectorAll('.bar-wrapper');
+        wrappers.forEach(w => {
+          const taskId = w.getAttribute('data-id');
+          if (taskId && issueColors[taskId]) {
+            const bar = w.querySelector('.bar');
+            if (bar) bar.setAttribute('fill', issueColors[taskId]);
+          }
+        });
+      }, 50);
     } catch (e) {
       console.error('Gantt render error:', e);
     }
@@ -271,7 +235,7 @@ export default function Timeline({ onSelectIssue }) {
       if (containerRef.current) containerRef.current.innerHTML = '';
       ganttRef.current = null;
     };
-  }, [tasks]);
+  }, [tasks, issueColors]);
 
   if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
   if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
