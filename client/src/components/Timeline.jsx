@@ -3,13 +3,58 @@ import Gantt from 'frappe-gantt';
 import { searchIssuesAll, getConfig } from '../jira-client';
 import './Timeline.css';
 
-// Distinct from TYPE_COLORS (purple/green/blue/red) — warm/earth tones for components
 const COMPONENT_COLORS = [
   '#E67E22', '#8E44AD', '#2ECC71', '#E74C3C',
   '#1ABC9C', '#F39C12', '#3498DB', '#E91E63',
   '#00BCD4', '#FF5722', '#9C27B0', '#4CAF50',
   '#FF9800', '#673AB7', '#009688', '#F44336',
 ];
+
+// Generate shade variations (lighter/darker) from a base hex color
+function shadeVariants(hex, count) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+
+  // Convert to HSL
+  const rf = r / 255, gf = g / 255, bf = b / 255;
+  const max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf);
+  const l = (max + min) / 2;
+  let h = 0, s = 0;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === rf) h = ((gf - bf) / d + (gf < bf ? 6 : 0)) / 6;
+    else if (max === gf) h = ((bf - rf) / d + 2) / 6;
+    else h = ((rf - gf) / d + 4) / 6;
+  }
+
+  // Generate variations with different lightness levels
+  const variants = [];
+  for (let i = 0; i < count; i++) {
+    const offset = (i / (count - 1 || 1) - 0.5) * 0.3; // spread from -0.15 to +0.15
+    const li = Math.max(0.08, Math.min(0.92, l + offset));
+    const hslToRgb = (h1, s1, l1) => {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      const q = l1 < 0.5 ? l1 * (1 + s1) : l1 + s1 - l1 * s1;
+      const p = 2 * l1 - q;
+      const r2 = Math.round(hue2rgb(p, q, h1 + 1/3) * 255);
+      const g2 = Math.round(hue2rgb(p, q, h1) * 255);
+      const b2 = Math.round(hue2rgb(p, q, h1 - 1/3) * 255);
+      return `#${r2.toString(16).padStart(2, '0')}${g2.toString(16).padStart(2, '0')}${b2.toString(16).padStart(2, '0')}`;
+    };
+    variants.push(hslToRgb(h, s, li));
+  }
+  return variants;
+}
 
 function parseTimelineIssue(issue) {
   const f = issue.fields || {};
@@ -81,6 +126,20 @@ export default function Timeline({ onSelectIssue }) {
     setExpandedComponents(prev => ({ ...prev, [name]: !prev[name] }));
   }, []);
 
+  // Pre-compute shade colors per component
+  const shadeStyles = useMemo(() => {
+    if (activeNames.length === 0) return {};
+
+    const styles = {};
+    const SHADE_COUNT = 5;
+    activeNames.forEach((name, ci) => {
+      const base = COMPONENT_COLORS[ci % COMPONENT_COLORS.length];
+      const shades = shadeVariants(base, SHADE_COUNT);
+      styles[name] = { shades };
+    });
+    return styles;
+  }, [activeNames]);
+
   const tasks = useMemo(() => {
     if (activeNames.length === 0) return [];
 
@@ -88,31 +147,49 @@ export default function Timeline({ onSelectIssue }) {
       i.components && i.components.some(c => selectedComponents[c.name])
     );
 
-    const sorted = [...filtered].sort((a, b) => {
-      const sa = a.start_date || a.due_date || '';
-      const sb = b.start_date || b.due_date || '';
-      return sa.localeCompare(sb);
-    });
-
-    return sorted.map(issue => {
-      const start = issue.start_date || issue.due_date || '';
-      const end = issue.due_date || issue.start_date || '';
+    // Group by primary component, assign shade indices within each group
+    const byComp = {};
+    for (const issue of filtered) {
       const compName = (issue.components || []).find(c => selectedComponents[c.name])?.name || '';
-      const done = issue.status_category === 'Done';
+      if (!byComp[compName]) byComp[compName] = [];
+      byComp[compName].push(issue);
+    }
 
-      return {
-        id: issue.key,
-        name: `${issue.key}: ${issue.summary}`,
-        start: start.split('T')[0],
-        end: end.split('T')[0],
-        progress: done ? 100 : 0,
-        dependencies: '',
-        custom_class: `gantt-comp-${compName.replace(/[^a-zA-Z0-9]/g, '_')}`,
-      };
-    }).filter(t => t.start && t.end);
-  }, [issues, selectedComponents]);
+    const tasks = [];
+    for (const [compName, compIssues] of Object.entries(byComp)) {
+      const sorted = compIssues.sort((a, b) => {
+        const sa = a.start_date || a.due_date || '';
+        const sb = b.start_date || b.due_date || '';
+        return sa.localeCompare(sb);
+      });
 
-  // Inject dynamic CSS for component bar colors
+      const info = shadeStyles[compName];
+      const shadeCount = info ? info.shades.length : 5;
+
+      for (let idx = 0; idx < sorted.length; idx++) {
+        const issue = sorted[idx];
+        const start = issue.start_date || issue.due_date || '';
+        const end = issue.due_date || issue.start_date || '';
+        const done = issue.status_category === 'Done';
+        const shadeIdx = idx % shadeCount;
+        const safeName = compName.replace(/[^a-zA-Z0-9]/g, '_');
+
+        tasks.push({
+          id: issue.key,
+          name: `${issue.key}: ${issue.summary}`,
+          start: start.split('T')[0],
+          end: end.split('T')[0],
+          progress: done ? 100 : 0,
+          dependencies: '',
+          custom_class: `gantt-comp-${safeName}-${shadeIdx}`,
+        });
+      }
+    }
+
+    return tasks.filter(t => t.start && t.end);
+  }, [issues, selectedComponents, shadeStyles]);
+
+  // Inject dynamic CSS for component bar shades
   useEffect(() => {
     const styleId = 'gantt-comp-styles';
     let styleEl = document.getElementById(styleId);
@@ -121,20 +198,20 @@ export default function Timeline({ onSelectIssue }) {
       styleEl.id = styleId;
       document.head.appendChild(styleEl);
     }
-    const colorMap = {};
-    activeNames.forEach((c, i) => {
-      colorMap[c] = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
-    });
-    styleEl.textContent = Object.entries(colorMap)
-      .map(([name, color]) =>
-        `.gantt-comp-${name.replace(/[^a-zA-Z0-9]/g, '_')} .bar { fill: ${color}; }`
-      ).join('\n');
+    let css = '';
+    for (const [name, info] of Object.entries(shadeStyles)) {
+      const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+      for (let i = 0; i < info.shades.length; i++) {
+        css += `.gantt-comp-${safeName}-${i} .bar { fill: ${info.shades[i]}; }\n`;
+      }
+    }
+    styleEl.textContent = css;
 
     return () => {
       const el = document.getElementById(styleId);
       if (el) el.textContent = '';
     };
-  }, [activeNames]);
+  }, [shadeStyles]);
 
   // Render Gantt
   useEffect(() => {
@@ -186,7 +263,8 @@ export default function Timeline({ onSelectIssue }) {
           </div>
           <div className="component-list">
             {allComponents.map((c, i) => {
-              const color = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
+              const baseColor = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
+              const shades = shadeVariants(baseColor, 5);
               const checked = selectedComponents[c.name] || false;
               const expanded = expandedComponents[c.name] || false;
               const compIssues = (c.issues || []).sort((a, b) => {
@@ -209,26 +287,31 @@ export default function Timeline({ onSelectIssue }) {
                         checked={checked}
                         onChange={e => setSelectedComponents({ ...selectedComponents, [c.name]: e.target.checked })}
                       />
-                      <span className="comp-color-dot" style={{ backgroundColor: color }} />
+                      <span className="comp-color-dot" style={{ backgroundColor: baseColor }} />
                       <span className="comp-name">{c.name}</span>
                       <span className="component-count">{c.count}</span>
                     </label>
                   </div>
                   {expanded && (
                     <div className="comp-issues">
-                      {compIssues.map(issue => (
-                        <div
-                          key={issue.key}
-                          className="comp-issue-item"
-                          onClick={() => onSelectIssue(issue.key)}
-                        >
-                          <span className="comp-issue-key">{issue.key}</span>
-                          <span className="comp-issue-summary">{issue.summary}</span>
-                          <span className="comp-issue-date">
-                            {issue.start_date ? issue.start_date.split('T')[0] : (issue.due_date ? issue.due_date.split('T')[0] : '-')}
-                          </span>
-                        </div>
-                      ))}
+                      {compIssues.map((issue, idx) => {
+                        const shadeIdx = idx % shades.length;
+                        const issueColor = shades[shadeIdx];
+                        return (
+                          <div
+                            key={issue.key}
+                            className="comp-issue-item"
+                            onClick={() => onSelectIssue(issue.key)}
+                          >
+                            <span className="comp-issue-color" style={{ backgroundColor: issueColor }} />
+                            <span className="comp-issue-key">{issue.key}</span>
+                            <span className="comp-issue-summary">{issue.summary}</span>
+                            <span className="comp-issue-date">
+                              {issue.start_date ? issue.start_date.split('T')[0] : (issue.due_date ? issue.due_date.split('T')[0] : '-')}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
