@@ -241,10 +241,11 @@ export default function Timeline({ onSelectIssue }) {
         }
       });
 
-      // Apply colors and position labels after bars
+      // Apply colors, position labels, and draw today line
       requestAnimationFrame(() => {
         if (!containerRef.current) return;
         const wrappers = containerRef.current.querySelectorAll('.bar-wrapper');
+        const svg = containerRef.current.querySelector('svg');
         for (const w of wrappers) {
           const taskId = w.getAttribute('data-id');
           const color = taskId && issueColors[taskId];
@@ -261,6 +262,46 @@ export default function Timeline({ onSelectIssue }) {
             label.setAttribute('x', barX + barW + 5);
             label.classList.add('big');
           }
+        }
+
+        // Draw today line
+        if (!svg) return;
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        // Find today's column by looking for a grid header matching today's date
+        const gridRows = svg.querySelectorAll('.grid-row');
+        let todayX = null;
+        let chartHeight = 0;
+        for (const row of gridRows) {
+          const cols = row.querySelectorAll('.grid-col');
+          for (const col of cols) {
+            const dataDate = col.getAttribute('data-date');
+            if (dataDate === todayStr) {
+              todayX = parseFloat(col.getAttribute('x') || 0);
+              chartHeight = Math.max(chartHeight, parseFloat(col.getAttribute('height') || 0));
+            }
+          }
+        }
+
+        if (todayX !== null) {
+          // Get the full chart height from the SVG
+          const svgH = parseFloat(svg.getAttribute('height') || svg.getAttribute('viewBox')?.split(' ')[3] || 0);
+          let lineId = 'today-line';
+          let line = document.getElementById(lineId);
+          if (!line) {
+            line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.id = lineId;
+            line.setAttribute('stroke', '#DE350B');
+            line.setAttribute('stroke-width', '2');
+            line.setAttribute('stroke-dasharray', '6,3');
+            svg.appendChild(line);
+          }
+          const totalH = svgH || chartHeight || 500;
+          line.setAttribute('x1', todayX);
+          line.setAttribute('y1', 0);
+          line.setAttribute('x2', todayX);
+          line.setAttribute('y2', totalH);
         }
       });
     } catch (e) {
