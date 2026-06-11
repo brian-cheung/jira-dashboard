@@ -250,27 +250,51 @@ export default function Timeline({ onSelectIssue }) {
           }
         }
 
-        // Today line
+        // Today line with label
         const gantt = ganttRef.current;
         const today = new Date(); today.setHours(0, 0, 0, 0);
         const start = new Date(gantt.gantt_start); start.setHours(0, 0, 0, 0);
         const todayX = (((today - start) / (1000 * 60 * 60)) / gantt.options.step) * gantt.options.column_width;
-        const totalH = svg.getAttribute('viewBox')?.split(' ')[3] || '500';
-        let line = document.getElementById('today-line');
-        if (!line) {
-          line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.id = 'today-line';
-          line.setAttribute('stroke', '#DE350B');
-          line.setAttribute('stroke-width', '2');
-          line.setAttribute('stroke-dasharray', '6,3');
-          svg.appendChild(line);
-        }
-        line.setAttribute('x1', todayX);
-        line.setAttribute('y1', 0);
-        line.setAttribute('x2', todayX);
-        line.setAttribute('y2', totalH);
+        // Get full SVG height from viewBox
+        const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [];
+        const svgH = vb[3] || parseFloat(svg.getAttribute('height') || '800');
 
-        // Pin month header
+        // Remove old today group if exists, then create fresh
+        let todayGroup = document.getElementById('today-indicator');
+        if (todayGroup) todayGroup.remove();
+        todayGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        todayGroup.id = 'today-indicator';
+
+        // Vertical dashed line
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', todayX); line.setAttribute('y1', 65);
+        line.setAttribute('x2', todayX); line.setAttribute('y2', svgH);
+        line.setAttribute('stroke', '#DE350B');
+        line.setAttribute('stroke-width', '1.5');
+        line.setAttribute('stroke-dasharray', '6,4');
+        line.setAttribute('opacity', '0.7');
+        todayGroup.appendChild(line);
+
+        // Small circle at top of line
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', todayX); circle.setAttribute('cy', 65);
+        circle.setAttribute('r', '4');
+        circle.setAttribute('fill', '#DE350B');
+        todayGroup.appendChild(circle);
+
+        // "Today" label
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', todayX); text.setAttribute('y', 58);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', '#DE350B');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('font-weight', '600');
+        text.textContent = 'Today';
+        todayGroup.appendChild(text);
+
+        svg.appendChild(todayGroup);
+
+        // Pin month header and hide original date group
         const dateGroup = svg.querySelector('g.date');
         const pinned = headerRef.current;
         if (dateGroup && pinned) {
@@ -279,6 +303,8 @@ export default function Timeline({ onSelectIssue }) {
             pinnedSvg.setAttribute('width', svg.getAttribute('width') || '100%');
             pinnedSvg.innerHTML = dateGroup.outerHTML;
           }
+          // Hide the original date group in the scrollable SVG
+          dateGroup.setAttribute('visibility', 'hidden');
         }
       });
     } catch (e) {
