@@ -126,20 +126,47 @@ export default function Timeline({ onSelectIssue }) {
     setExpandedComponents(prev => ({ ...prev, [name]: !prev[name] }));
   }, []);
 
-  // Pre-compute shade colors per component, using allComponents index for color
-  const shadeStyles = useMemo(() => {
-    if (activeNames.length === 0) return {};
+  // Shared issue→color map used by both Gantt and sidebar
+  const SHADE_COUNT = 5;
+
+  const { shadeStyles, issueColors } = useMemo(() => {
+    if (activeNames.length === 0) return { shadeStyles: {}, issueColors: {} };
 
     const styles = {};
-    const SHADE_COUNT = 5;
-    activeNames.forEach((name) => {
-      const ci = allComponents.findIndex(c => c.name === name);
+    const colors = {}; // issue.key → color
+
+    // Build sorted issue list per selected component
+    const filtered = issues.filter(i =>
+      i.components && i.components.some(c => selectedComponents[c.name])
+    );
+
+    const byComp = {};
+    for (const issue of filtered) {
+      const compName = (issue.components || []).find(c => selectedComponents[c.name])?.name || '';
+      if (!byComp[compName]) byComp[compName] = [];
+      byComp[compName].push(issue);
+    }
+
+    for (const [compName, compIssues] of Object.entries(byComp)) {
+      const sorted = compIssues.sort((a, b) => {
+        const sa = a.start_date || a.due_date || '';
+        const sb = b.start_date || b.due_date || '';
+        return sa.localeCompare(sb);
+      });
+
+      const ci = allComponents.findIndex(c => c.name === compName);
       const base = COMPONENT_COLORS[ci >= 0 ? ci % COMPONENT_COLORS.length : 0];
       const shades = shadeVariants(base, SHADE_COUNT);
-      styles[name] = { shades, base };
-    });
-    return styles;
-  }, [activeNames, allComponents]);
+      styles[compName] = { shades, base };
+
+      for (let idx = 0; idx < sorted.length; idx++) {
+        const shadeIdx = idx % SHADE_COUNT;
+        colors[sorted[idx].key] = shades[shadeIdx];
+      }
+    }
+
+    return { shadeStyles: styles, issueColors: colors };
+  }, [activeNames, issues, selectedComponents, allComponents]);
 
   const tasks = useMemo(() => {
     if (activeNames.length === 0) return [];
@@ -265,7 +292,6 @@ export default function Timeline({ onSelectIssue }) {
           <div className="component-list">
             {allComponents.map((c, i) => {
               const baseColor = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
-              const shades = shadeVariants(baseColor, 5);
               const checked = selectedComponents[c.name] || false;
               const expanded = expandedComponents[c.name] || false;
               const compIssues = (c.issues || []).sort((a, b) => {
@@ -295,9 +321,8 @@ export default function Timeline({ onSelectIssue }) {
                   </div>
                   {expanded && (
                     <div className="comp-issues">
-                      {compIssues.map((issue, idx) => {
-                        const shadeIdx = idx % shades.length;
-                        const issueColor = shades[shadeIdx];
+                      {compIssues.map((issue) => {
+                        const issueColor = issueColors[issue.key] || baseColor;
                         return (
                           <div
                             key={issue.key}

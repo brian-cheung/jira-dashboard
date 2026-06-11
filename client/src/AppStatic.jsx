@@ -508,8 +508,8 @@ export default function AppStatic() {
         <button className={`app-tab ${tab === 'setup' ? 'active' : ''}`} onClick={() => setTab('setup')}>Setup</button>
       </div>
       <div className="app-main">
-        <div className="app-sidebar">
-          {tab !== 'timeline' && (
+        {tab !== 'timeline' && (
+          <div className="app-sidebar">
             <div className="filter-bar">
               <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="filter-search" />
 
@@ -611,8 +611,8 @@ export default function AppStatic() {
 
               <button className="filter-clear-btn" onClick={clearAllFilters}>Clear All Filters</button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
         <div className="app-content">
           {tab === 'tickets' ? (
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
