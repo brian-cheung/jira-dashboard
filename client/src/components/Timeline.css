@@ -37,6 +37,10 @@
   flex: 1;
   overflow: auto;
 }
+.timeline-gantt-inner {
+  width: max-content;
+  min-width: 100%;
+}
 .gantt-header-pinned {
   position: sticky;
   top: 0;

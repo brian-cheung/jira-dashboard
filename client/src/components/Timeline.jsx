@@ -404,10 +404,12 @@ export default function Timeline({ onSelectIssue }) {
             </div>
             <div className="timeline-gantt-wrap">
               <div className="timeline-gantt-scroll">
-                <div className="gantt-header-pinned" ref={headerRef}>
-                  <svg xmlns="http://www.w3.org/2000/svg"></svg>
+                <div className="timeline-gantt-inner">
+                  <div className="gantt-header-pinned" ref={headerRef}>
+                    <svg xmlns="http://www.w3.org/2000/svg"></svg>
+                  </div>
+                  <div ref={ganttContainerRef} className="timeline-gantt" />
                 </div>
-                <div ref={ganttContainerRef} className="timeline-gantt" />
               </div>
             </div>
           </>
