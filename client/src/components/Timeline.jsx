@@ -33,7 +33,7 @@ function shadeVariants(hex, count) {
   // Generate variations with different lightness levels
   const variants = [];
   for (let i = 0; i < count; i++) {
-    const offset = (i / (count - 1 || 1) - 0.5) * 0.3; // spread from -0.15 to +0.15
+    const offset = (i / (count - 1 || 1) - 0.5) * 0.5; // spread from -0.25 to +0.25
     const li = Math.max(0.08, Math.min(0.92, l + offset));
     const hslToRgb = (h1, s1, l1) => {
       const hue2rgb = (p, q, t) => {
@@ -230,7 +230,7 @@ export default function Timeline({ onSelectIssue }) {
     for (const [name, info] of Object.entries(shadeStyles)) {
       const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
       for (let i = 0; i < info.shades.length; i++) {
-        css += `.gantt-comp-${safeName}-${i} .bar { fill: ${info.shades[i]}; }\n`;
+        css += `.gantt-comp-${safeName}-${i} .bar { fill: ${info.shades[i]} !important; }\n`;
       }
     }
     styleEl.textContent = css;
