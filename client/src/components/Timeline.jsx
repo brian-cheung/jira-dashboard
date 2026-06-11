@@ -71,8 +71,6 @@ export default function Timeline({ onSelectIssue }) {
   const [hideDone, setHideDone] = useState(false);
   const ganttContainerRef = useRef(null);
   const ganttRef = useRef(null);
-  const headerRef = useRef(null);
-  const scrollSyncRef = useRef(null);
 
   useEffect(() => {
     const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
@@ -293,21 +291,6 @@ export default function Timeline({ onSelectIssue }) {
         todayGroup.appendChild(text);
 
         svg.appendChild(todayGroup);
-
-        // Pin month header and hide original date group
-        const dateGroup = svg.querySelector('g.date');
-        const pinned = headerRef.current;
-        if (dateGroup && pinned) {
-          const pinnedSvg = pinned.querySelector('svg');
-          if (pinnedSvg) {
-            const svgW = svg.getAttribute('width') || svg.getAttribute('viewBox')?.split(' ')[2] || '100%';
-            pinnedSvg.setAttribute('width', svgW);
-            pinnedSvg.setAttribute('height', '60');
-            pinnedSvg.innerHTML = dateGroup.outerHTML;
-          }
-          // Hide the original date group in the scrollable SVG
-          dateGroup.setAttribute('visibility', 'hidden');
-        }
       });
     } catch (e) {
       console.error('Gantt render error:', e);
@@ -403,14 +386,7 @@ export default function Timeline({ onSelectIssue }) {
               <span>{tasks.length} item{tasks.length !== 1 ? 's' : ''} across {activeNames.length} component{activeNames.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="timeline-gantt-wrap">
-              <div className="timeline-gantt-scroll">
-                <div className="timeline-gantt-inner">
-                  <div className="gantt-header-pinned" ref={headerRef}>
-                    <svg xmlns="http://www.w3.org/2000/svg"></svg>
-                  </div>
-                  <div ref={ganttContainerRef} className="timeline-gantt" />
-                </div>
-              </div>
+              <div ref={ganttContainerRef} className="timeline-gantt" />
             </div>
           </>
         )}
