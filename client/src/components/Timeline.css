@@ -171,3 +171,17 @@
   color: #6B778C;
   flex-shrink: 0;
 }
+
+.timeline-done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #42526E;
+  cursor: pointer;
+  padding: 6px 0;
+}
+.timeline-done-toggle input[type="checkbox"] {
+  margin: 0;
+  accent-color: #0052CC;
+}

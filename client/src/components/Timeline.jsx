@@ -79,6 +79,7 @@ export default function Timeline({ onSelectIssue }) {
   const [error, setError] = useState('');
   const [selectedComponents, setSelectedComponents] = useState({});
   const [expandedComponents, setExpandedComponents] = useState({});
+  const [hideDone, setHideDone] = useState(false);
   const containerRef = useRef(null);
   const ganttRef = useRef(null);
 
@@ -134,9 +135,10 @@ export default function Timeline({ onSelectIssue }) {
 
     const colors = {}; // issue.key → color
 
-    const filtered = issues.filter(i =>
-      i.components && i.components.some(c => selectedComponents[c.name])
-    );
+    const filtered = issues.filter(i => {
+      if (hideDone && i.status_category === 'Done') return false;
+      return i.components && i.components.some(c => selectedComponents[c.name]);
+    });
 
     const byComp = {};
     for (const issue of filtered) {
@@ -165,14 +167,15 @@ export default function Timeline({ onSelectIssue }) {
     }
 
     return colors;
-  }, [activeNames, issues, selectedComponents, allComponents]);
+  }, [activeNames, issues, selectedComponents, allComponents, hideDone]);
 
   const tasks = useMemo(() => {
     if (activeNames.length === 0) return [];
 
-    const filtered = issues.filter(i =>
-      i.components && i.components.some(c => selectedComponents[c.name])
-    );
+    const filtered = issues.filter(i => {
+      if (hideDone && i.status_category === 'Done') return false;
+      return i.components && i.components.some(c => selectedComponents[c.name]);
+    });
 
     const sorted = [...filtered].sort((a, b) => {
       const sa = a.start_date || a.due_date || '';
@@ -194,7 +197,7 @@ export default function Timeline({ onSelectIssue }) {
         dependencies: '',
       };
     }).filter(t => t.start && t.end);
-  }, [issues, selectedComponents]);
+  }, [issues, selectedComponents, hideDone]);
 
   // Inject CSS for bar colors
   useEffect(() => {
@@ -376,6 +379,16 @@ export default function Timeline({ onSelectIssue }) {
             })}
             {allComponents.length === 0 && <div style={{ padding: 8, fontSize: 11, color: '#6B778C' }}>No components found</div>}
           </div>
+        </div>
+        <div className="filter-section">
+          <label className="timeline-done-toggle">
+            <input
+              type="checkbox"
+              checked={hideDone}
+              onChange={e => setHideDone(e.target.checked)}
+            />
+            Hide done items
+          </label>
         </div>
       </div>
       <div className="timeline-main">
