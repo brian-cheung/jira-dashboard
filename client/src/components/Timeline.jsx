@@ -300,11 +300,15 @@ export default function Timeline({ onSelectIssue }) {
         if (dateGroup && pinned) {
           const pinnedSvg = pinned.querySelector('svg');
           if (pinnedSvg) {
-            pinnedSvg.setAttribute('width', svg.getAttribute('width') || '100%');
+            const svgW = svg.getAttribute('width') || svg.getAttribute('viewBox')?.split(' ')[2] || '100%';
+            pinnedSvg.setAttribute('width', svgW);
+            pinnedSvg.setAttribute('height', '60');
             pinnedSvg.innerHTML = dateGroup.outerHTML;
           }
           // Hide the original date group in the scrollable SVG
           dateGroup.setAttribute('visibility', 'hidden');
+          // Sync scroll initially
+          pinned.scrollLeft = ganttContainerRef.current?.scrollLeft || 0;
         }
       });
     } catch (e) {
@@ -320,14 +324,15 @@ export default function Timeline({ onSelectIssue }) {
   // Sync Gantt horizontal scroll with pinned header
   useEffect(() => {
     const container = ganttContainerRef.current;
-    if (!container) return;
-    const onScroll = () => {
-      const pinned = headerRef.current;
-      if (pinned) pinned.scrollLeft = container.scrollLeft;
-    };
+    if (!container || tasks.length === 0) return;
+    const pinned = headerRef.current;
+    if (!pinned) return;
+    const onScroll = () => { pinned.scrollLeft = container.scrollLeft; };
     container.addEventListener('scroll', onScroll, { passive: true });
+    // Initial sync
+    pinned.scrollLeft = container.scrollLeft;
     return () => container.removeEventListener('scroll', onScroll);
-  }, [tasks.length > 0]); // re-attach when tasks change
+  }, [tasks]);
 
   if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
   if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
