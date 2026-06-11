@@ -33,9 +33,32 @@
   display: flex;
   flex-direction: column;
 }
+.timeline-gantt-hscroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.timeline-gantt-inner {
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.gantt-header-pinned {
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #FAFBFC;
+  border-bottom: 1px solid #DFE1E6;
+  pointer-events: none;
+}
+.gantt-header-pinned svg {
+  display: block;
+}
 .timeline-gantt {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .timeline-gantt .bar {
   transition: filter 0.15s;

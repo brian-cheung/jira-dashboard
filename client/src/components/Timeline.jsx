@@ -71,6 +71,7 @@ export default function Timeline({ onSelectIssue }) {
   const [hideDone, setHideDone] = useState(false);
   const ganttContainerRef = useRef(null);
   const ganttRef = useRef(null);
+  const headerRef = useRef(null);
 
   useEffect(() => {
     const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
@@ -248,24 +249,23 @@ export default function Timeline({ onSelectIssue }) {
           }
         }
 
-        // Today line with label
+        // Today line
         const gantt = ganttRef.current;
         const today = new Date(); today.setHours(0, 0, 0, 0);
         const start = new Date(gantt.gantt_start); start.setHours(0, 0, 0, 0);
         const todayX = (((today - start) / (1000 * 60 * 60)) / gantt.options.step) * gantt.options.column_width;
-        // Get full SVG height from viewBox
         const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [];
         const svgH = vb[3] || parseFloat(svg.getAttribute('height') || '800');
 
-        // Remove old today group if exists, then create fresh
         let todayGroup = document.getElementById('today-indicator');
         if (todayGroup) todayGroup.remove();
         todayGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         todayGroup.id = 'today-indicator';
 
-        // Vertical dashed line
+        const headerH = gantt.options.header_height; // 50
+
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', todayX); line.setAttribute('y1', 65);
+        line.setAttribute('x1', todayX); line.setAttribute('y1', headerH);
         line.setAttribute('x2', todayX); line.setAttribute('y2', svgH);
         line.setAttribute('stroke', '#DE350B');
         line.setAttribute('stroke-width', '1.5');
@@ -273,16 +273,14 @@ export default function Timeline({ onSelectIssue }) {
         line.setAttribute('opacity', '0.7');
         todayGroup.appendChild(line);
 
-        // Small circle at top of line
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', todayX); circle.setAttribute('cy', 65);
+        circle.setAttribute('cx', todayX); circle.setAttribute('cy', headerH);
         circle.setAttribute('r', '4');
         circle.setAttribute('fill', '#DE350B');
         todayGroup.appendChild(circle);
 
-        // "Today" label
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', todayX); text.setAttribute('y', 58);
+        text.setAttribute('x', todayX); text.setAttribute('y', headerH - 7);
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('fill', '#DE350B');
         text.setAttribute('font-size', '10');
@@ -291,6 +289,20 @@ export default function Timeline({ onSelectIssue }) {
         todayGroup.appendChild(text);
 
         svg.appendChild(todayGroup);
+
+        // Copy date header to pinned div, hide original
+        const dateGroup = svg.querySelector('g.date');
+        const pinned = headerRef.current;
+        if (dateGroup && pinned) {
+          const pinnedSvg = pinned.querySelector('svg');
+          if (pinnedSvg) {
+            const svgW = svg.getAttribute('width') || svg.getAttribute('viewBox')?.split(' ')[2] || '100%';
+            pinnedSvg.setAttribute('width', svgW);
+            pinnedSvg.setAttribute('height', headerH);
+            pinnedSvg.innerHTML = dateGroup.outerHTML;
+          }
+          dateGroup.setAttribute('visibility', 'hidden');
+        }
       });
     } catch (e) {
       console.error('Gantt render error:', e);
@@ -386,7 +398,14 @@ export default function Timeline({ onSelectIssue }) {
               <span>{tasks.length} item{tasks.length !== 1 ? 's' : ''} across {activeNames.length} component{activeNames.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="timeline-gantt-wrap">
-              <div ref={ganttContainerRef} className="timeline-gantt" />
+              <div className="timeline-gantt-hscroll">
+                <div className="timeline-gantt-inner">
+                  <div className="gantt-header-pinned" ref={headerRef}>
+                    <svg xmlns="http://www.w3.org/2000/svg"></svg>
+                  </div>
+                  <div ref={ganttContainerRef} className="timeline-gantt" />
+                </div>
+              </div>
             </div>
           </>
         )}
