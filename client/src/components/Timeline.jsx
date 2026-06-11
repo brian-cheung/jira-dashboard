@@ -126,19 +126,20 @@ export default function Timeline({ onSelectIssue }) {
     setExpandedComponents(prev => ({ ...prev, [name]: !prev[name] }));
   }, []);
 
-  // Pre-compute shade colors per component
+  // Pre-compute shade colors per component, using allComponents index for color
   const shadeStyles = useMemo(() => {
     if (activeNames.length === 0) return {};
 
     const styles = {};
     const SHADE_COUNT = 5;
-    activeNames.forEach((name, ci) => {
-      const base = COMPONENT_COLORS[ci % COMPONENT_COLORS.length];
+    activeNames.forEach((name) => {
+      const ci = allComponents.findIndex(c => c.name === name);
+      const base = COMPONENT_COLORS[ci >= 0 ? ci % COMPONENT_COLORS.length : 0];
       const shades = shadeVariants(base, SHADE_COUNT);
-      styles[name] = { shades };
+      styles[name] = { shades, base };
     });
     return styles;
-  }, [activeNames]);
+  }, [activeNames, allComponents]);
 
   const tasks = useMemo(() => {
     if (activeNames.length === 0) return [];
