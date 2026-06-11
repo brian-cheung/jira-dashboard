@@ -157,7 +157,10 @@ export default function Timeline({ onSelectIssue }) {
       const shades = shadeVariants(base, SHADE_COUNT);
 
       for (let idx = 0; idx < sorted.length; idx++) {
-        colors[sorted[idx].key] = shades[idx % SHADE_COUNT];
+        const issue = sorted[idx];
+        colors[issue.key] = issue.status_category === 'Done'
+          ? '#97A0AF'
+          : shades[idx % SHADE_COUNT];
       }
     }
 
@@ -238,7 +241,7 @@ export default function Timeline({ onSelectIssue }) {
         }
       });
 
-      // Apply colors directly as inline styles
+      // Apply colors and position labels after bars
       requestAnimationFrame(() => {
         if (!containerRef.current) return;
         const wrappers = containerRef.current.querySelectorAll('.bar-wrapper');
@@ -248,6 +251,15 @@ export default function Timeline({ onSelectIssue }) {
           if (color) {
             const bar = w.querySelector('.bar');
             if (bar) bar.style.fill = color;
+          }
+          // Move label to after the bar
+          const label = w.querySelector('.bar-label');
+          const bar = w.querySelector('.bar');
+          if (label && bar) {
+            const barX = parseFloat(bar.getAttribute('x') || 0);
+            const barW = parseFloat(bar.getAttribute('width') || 0);
+            label.setAttribute('x', barX + barW + 5);
+            label.classList.add('big');
           }
         }
       });

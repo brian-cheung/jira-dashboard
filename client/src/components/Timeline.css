@@ -37,6 +37,14 @@
 .timeline-gantt .bar:hover {
   filter: brightness(0.9);
 }
+.timeline-gantt .bar-label {
+  font-size: 11px;
+  fill: #172B4D;
+  dominant-baseline: middle;
+}
+.timeline-gantt .bar-label.big {
+  font-size: 11px;
+}
 .timeline-empty {
   padding: 40px;
   text-align: center;
