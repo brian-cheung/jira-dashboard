@@ -296,6 +296,34 @@ export default function Timeline({ onSelectIssue }) {
         line.setAttribute('y1', 0);
         line.setAttribute('x2', todayX);
         line.setAttribute('y2', totalH || 500);
+
+        // Pin month header
+        const scrollWrap = containerRef.current;
+        let pinned = scrollWrap.querySelector('.gantt-header-pinned');
+        if (!pinned) {
+          pinned = document.createElement('div');
+          pinned.className = 'gantt-header-pinned';
+          pinned.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+          scrollWrap.appendChild(pinned);
+        }
+        const pinnedSvg = pinned.querySelector('svg');
+        const dateGroup = svg.querySelector('g.date');
+        if (dateGroup && pinnedSvg) {
+          pinnedSvg.setAttribute('width', svg.getAttribute('width') || '100%');
+          pinnedSvg.setAttribute('height', dateGroup.getBBox().height + 10);
+          pinnedSvg.innerHTML = dateGroup.outerHTML;
+        }
+
+        // Sync horizontal scroll
+        const syncScroll = () => {
+          const h = scrollWrap.querySelector('.gantt-header-pinned');
+          if (h) {
+            h.style.transform = `translateX(${-scrollWrap.scrollLeft}px)`;
+            h.scrollLeft = scrollWrap.scrollLeft;
+          }
+        };
+        scrollWrap.removeEventListener('scroll', syncScroll);
+        scrollWrap.addEventListener('scroll', syncScroll, { passive: true });
       });
     } catch (e) {
       console.error('Gantt render error:', e);
@@ -314,14 +342,28 @@ export default function Timeline({ onSelectIssue }) {
     <div className="timeline-layout">
       <div className="timeline-sidebar">
         <div className="filter-section">
-          <div className="filter-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="filter-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
             <span>Components</span>
-            <button
-              onClick={toggleAll}
-              style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
-            >
-              {activeCount === allComponents.length && allComponents.length > 0 ? 'Deselect all' : 'Select all'}
-            </button>
+            <div style={{ display: 'flex', gap: 2 }}>
+              <button
+                onClick={() => {
+                  const all = {};
+                  allComponents.forEach(c => { all[c.name] = true; });
+                  setExpandedComponents(all);
+                }}
+                style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
+              >Expand all</button>
+              <button
+                onClick={() => setExpandedComponents({})}
+                style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
+              >Collapse all</button>
+              <button
+                onClick={toggleAll}
+                style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
+              >
+                {activeCount === allComponents.length && allComponents.length > 0 ? 'Deselect all' : 'Select all'}
+              </button>
+            </div>
           </div>
           <div className="component-list">
             {allComponents.map((c, i) => {

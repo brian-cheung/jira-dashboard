@@ -45,6 +45,18 @@
 .timeline-gantt .bar-label.big {
   font-size: 11px;
 }
+
+.gantt-header-pinned {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #FAFBFC;
+  border-bottom: 1px solid #DFE1E6;
+  pointer-events: none;
+}
+.gantt-header-pinned svg {
+  display: block;
+}
 .timeline-empty {
   padding: 40px;
   text-align: center;
