@@ -86,6 +86,7 @@ function saveColumnPrefs(cols) {
 
 export default function Dashboard({
   issues, filters, statusFilter, sprintFilter, typeFilter, priorityFilter,
+  projectFilter,
   search, onSelectIssue, selectedKey
 }) {
   const [sortField, setSortField] = useState('created');
@@ -128,9 +129,12 @@ export default function Dashboard({
       const matchesType = !typeFilter || i.issue_type === typeFilter;
       const matchesPriority = !priorityFilter || i.priority === priorityFilter;
 
-      return matchesSearch && matchesRole && matchesStatus && matchesSprint && matchesType && matchesPriority;
+      const activeProjects = Object.entries(projectFilter || {}).filter(([, v]) => v).map(([k]) => k);
+      const matchesProject = activeProjects.length === 0 || activeProjects.includes(i.project_key || '');
+
+      return matchesSearch && matchesRole && matchesStatus && matchesSprint && matchesType && matchesPriority && matchesProject;
     });
-  }, [issues, search, filters, statusFilter, sprintFilter, typeFilter, priorityFilter]);
+  }, [issues, search, filters, statusFilter, sprintFilter, typeFilter, priorityFilter, projectFilter]);
 
   const displayList = useMemo(() => {
     if (!hierarchyView) {

@@ -30,6 +30,7 @@ function initCache() {
       requested_by TEXT,
       sprint TEXT,
       priority TEXT,
+      project_key TEXT,
       updated TEXT,
       raw_json TEXT
     );
@@ -55,6 +56,9 @@ function initCache() {
 
   // Ensure the singleton row exists
   db.exec(`INSERT OR IGNORE INTO sync_log (id, last_sync) VALUES (1, NULL);`);
+
+  // Migration: add project_key if upgrading from older schema
+  try { db.exec(`ALTER TABLE issues ADD COLUMN project_key TEXT`); } catch {}
 
   return db;
 }
@@ -120,6 +124,8 @@ function upsertIssue(
   const requestedByVal = customFieldRequestedBy ? fields[customFieldRequestedBy] : null;
   const requestedByName = safeStr(requestedByVal);
 
+  const projectKey = fields.project ? safeStr(fields.project.key) : '';
+
   const assignee = fields.assignee || {};
   const reporter = fields.reporter || {};
 
@@ -136,11 +142,11 @@ function upsertIssue(
     INSERT OR REPLACE INTO issues
       (id, key, summary, status, status_category, assignee_name, assignee_avatar,
        reporter_name, tester_name, epic_key, parent_key, issue_type,
-       start_date, due_date, description, fix_versions, requested_by, sprint, priority, updated, raw_json)
+       start_date, due_date, description, fix_versions, requested_by, sprint, priority, project_key, updated, raw_json)
     VALUES
       (@id, @key, @summary, @status, @statusCategory, @assigneeName, @assigneeAvatar,
        @reporterName, @testerName, @epicKey, @parentKey, @issueType,
-       @startDate, @dueDate, @description, @fixVersions, @requestedBy, @sprint, @priority, @updated, @rawJson)
+       @startDate, @dueDate, @description, @fixVersions, @requestedBy, @sprint, @priority, @projectKey, @updated, @rawJson)
   `).run({
     id: issue.id,
     key: issue.key,
@@ -161,6 +167,7 @@ function upsertIssue(
     requestedBy: requestedByName,
     sprint: sprintName,
     priority: fields.priority ? safeStr(fields.priority.name) : '',
+    projectKey,
     updated: fields.updated || null,
     rawJson: JSON.stringify(issue)
   });

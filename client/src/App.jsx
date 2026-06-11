@@ -19,6 +19,7 @@ export default function App() {
   const [sprintFilter, setSprintFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [projectFilter, setProjectFilter] = useState({});
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('tickets');
   const [filtersReady, setFiltersReady] = useState(false);
@@ -89,12 +90,21 @@ export default function App() {
   }
 
   function clearAllFilters() {
-    setFilters({ assignee: true, reporter: true, tester: true });
+    setFilters({ assignee: false, reporter: false, tester: false });
     setStatusFilter({});
     setSprintFilter('');
     setTypeFilter('');
     setPriorityFilter('');
+    setProjectFilter({});
     setSearch('');
+  }
+
+  function resetToUndone() {
+    const undone = {};
+    for (const i of issues) {
+      if (i.status && i.status !== 'Done') undone[i.status] = true;
+    }
+    setStatusFilter(undone);
   }
 
   const sharedFilterProps = {
@@ -104,6 +114,7 @@ export default function App() {
     sprintFilter, onSprintFilterChange: setSprintFilter,
     typeFilter, onTypeFilterChange: setTypeFilter,
     priorityFilter, onPriorityFilterChange: setPriorityFilter,
+    projectFilter, onProjectFilterChange: setProjectFilter,
   };
 
   return (
@@ -127,7 +138,7 @@ export default function App() {
       </div>
       <div className="app-main">
         <div className="app-sidebar">
-          <FilterBar {...sharedFilterProps} issues={issues} onClearAll={clearAllFilters} />
+          <FilterBar {...sharedFilterProps} issues={issues} onClearAll={clearAllFilters} onResetUndone={resetToUndone} />
         </div>
         <div className="app-content">
           {tab === 'tickets' ? (

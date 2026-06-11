@@ -46,27 +46,38 @@ export default function FilterBar({
   sprintFilter, onSprintFilterChange,
   typeFilter, onTypeFilterChange,
   priorityFilter, onPriorityFilterChange,
+  projectFilter, onProjectFilterChange,
   issues,
-  onClearAll
+  onClearAll,
+  onResetUndone
 }) {
-  const { statuses, sprints, types, priorities } = useMemo(() => {
+  const { statuses, sprints, types, priorities, projects } = useMemo(() => {
     const sSet = new Set();
     const spSet = new Set();
     const tSet = new Set();
     const pSet = new Set();
+    const prSet = new Set();
     for (const i of issues || []) {
       if (i.status) sSet.add(i.status);
       if (i.sprint) i.sprint.split(', ').forEach(x => x && spSet.add(x));
       if (i.issue_type) tSet.add(i.issue_type);
       if (i.priority) pSet.add(i.priority);
+      if (i.project_key) prSet.add(i.project_key);
     }
     return {
       statuses: [...sSet].sort(),
       sprints: [...spSet].sort(),
       types: [...tSet].sort(),
       priorities: [...pSet].sort(),
+      projects: [...prSet].sort(),
     };
   }, [issues]);
+
+  const roles = [
+    { key: 'assignee', label: 'Assignee' },
+    { key: 'reporter', label: 'Reporter' },
+    { key: 'tester', label: 'Tester' },
+  ];
 
   return (
     <div className="filter-bar">
@@ -80,26 +91,30 @@ export default function FilterBar({
 
       <div className="filter-section">
         <div className="filter-section-label">Role</div>
-        <div className="filter-toggles">
-          {['assignee', 'reporter', 'tester'].map(role => (
-            <label key={role} className="filter-toggle">
+        <div className="filter-chips">
+          {roles.map(({ key, label }) => (
+            <label key={key} className={`filter-chip ${filters[key] ? 'active' : ''}`}>
               <input
                 type="checkbox"
-                checked={filters[role]}
-                onChange={e => onFiltersChange({ ...filters, [role]: e.target.checked })}
+                checked={filters[key]}
+                onChange={e => onFiltersChange({ ...filters, [key]: e.target.checked })}
               />
-              {role.charAt(0).toUpperCase() + role.slice(1)}
+              {label}
             </label>
           ))}
         </div>
       </div>
 
       <ChipGroup label="Status" items={statuses} selected={statusFilter} onChange={onStatusFilterChange} />
+      {projects.length > 1 && <ChipGroup label="Project" items={projects} selected={projectFilter} onChange={onProjectFilterChange} />}
       <DropdownFilter label="Sprint" items={sprints} selected={sprintFilter} onChange={onSprintFilterChange} />
       <DropdownFilter label="Type" items={types} selected={typeFilter} onChange={onTypeFilterChange} />
       <DropdownFilter label="Priority" items={priorities} selected={priorityFilter} onChange={onPriorityFilterChange} />
 
-      <button className="filter-clear-btn" onClick={onClearAll}>Clear All Filters</button>
+      <div className="filter-actions">
+        <button className="filter-undone-btn" onClick={onResetUndone}>Undone</button>
+        <button className="filter-clear-btn" onClick={onClearAll}>Clear All</button>
+      </div>
     </div>
   );
 }
