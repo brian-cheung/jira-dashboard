@@ -99,7 +99,7 @@ function ConfigScreen({ onConfigured }) {
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
   const [jql, setJql] = useState('');
-  const [backendUrl, setBackendUrl] = useState('');
+  const [backendUrl, setBackendUrl] = useState('https://jira-proxy.tec-jira.workers.dev/');
   const [error, setError] = useState('');
   const [testing, setTesting] = useState(false);
 
@@ -131,7 +131,7 @@ function ConfigScreen({ onConfigured }) {
       setEmail(saved.email || '');
       setToken(saved.token || '');
       setJql(saved.jql || '');
-      setBackendUrl(saved.backendUrl || '');
+      setBackendUrl(saved.backendUrl || 'https://jira-proxy.tec-jira.workers.dev/');
     }
   }, []);
 
