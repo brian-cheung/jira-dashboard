@@ -222,6 +222,7 @@ export default function Timeline({ onSelectIssue }) {
   const [selectedComponents, setSelectedComponents] = useState({});
   const [expandedComponents, setExpandedComponents] = useState({});
   const [hideDone, setHideDone] = useState(false);
+  const hscrollRef = useRef(null);
 
   useEffect(() => {
     const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
@@ -401,6 +402,15 @@ export default function Timeline({ onSelectIssue }) {
     return days * PX_PER_DAY;
   }, [dateRange]);
 
+  // Scroll to center today on mount / tasks change
+  useEffect(() => {
+    const el = hscrollRef.current;
+    if (!el || tasks.length === 0) return;
+    requestAnimationFrame(() => {
+      el.scrollLeft = todayX - el.clientWidth / 2;
+    });
+  }, [tasks, todayX]);
+
   if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
   if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
 
@@ -484,7 +494,7 @@ export default function Timeline({ onSelectIssue }) {
               <span>{tasks.length} item{tasks.length !== 1 ? 's' : ''} across {activeNames.length} component{activeNames.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="timeline-gantt-wrap">
-              <div className="timeline-gantt-hscroll">
+              <div className="timeline-gantt-hscroll" ref={hscrollRef}>
                 <div className="timeline-gantt-inner">
                   <div className="gantt-header">
                     <GanttHeader months={months} years={years} totalWidth={totalWidth} todayX={todayX} />
