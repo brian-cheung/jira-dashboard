@@ -45,34 +45,26 @@
   display: flex;
   flex-direction: column;
 }
-.gantt-header-pinned {
+.gantt-header {
   flex-shrink: 0;
   overflow: hidden;
   background: #FAFBFC;
   border-bottom: 1px solid #DFE1E6;
   pointer-events: none;
 }
-.gantt-header-pinned svg {
-  display: block;
-}
-.timeline-gantt {
+.timeline-gantt-body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
 }
-.timeline-gantt .bar {
+.gantt-bar {
   transition: filter 0.15s;
 }
-.timeline-gantt .bar:hover {
+.gantt-bar-group:hover .gantt-bar {
   filter: brightness(0.9);
 }
-.timeline-gantt .bar-label {
-  font-size: 11px;
-  fill: #172B4D;
-  dominant-baseline: middle;
-}
-.timeline-gantt .bar-label.big {
-  font-size: 11px;
+.gantt-bar-label {
+  pointer-events: none;
 }
 .timeline-empty {
   padding: 40px;

@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import Gantt from 'frappe-gantt';
 import { searchIssuesAll, getConfig } from '../jira-client';
 import './Timeline.css';
 
@@ -62,6 +61,160 @@ function parseTimelineIssue(issue) {
   };
 }
 
+// ---- Gantt constants ----
+const ROW_HEIGHT = 42;       // bar + padding
+const BAR_HEIGHT = 24;
+const BAR_V_OFFSET = 9;      // padding above bar within row
+const HEADER_HEIGHT = 50;
+const PX_PER_DAY = 4;        // 120 / 30
+const MIN_BAR_W = 3;
+
+// ---- Gantt sub-components ----
+
+function GanttHeader({ months, years, totalWidth, todayX }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={totalWidth}
+      height={HEADER_HEIGHT}
+      style={{ display: 'block' }}
+    >
+      {/* Background */}
+      <rect x={0} y={0} width={totalWidth} height={HEADER_HEIGHT} fill="#FAFBFC" />
+      {/* Year labels */}
+      {years.map(y => (
+        <text
+          key={`y-${y.year}`}
+          x={y.x + y.width / 2}
+          y={20}
+          textAnchor="middle"
+          fill="#6B778C"
+          fontSize="11"
+          fontWeight="600"
+        >{y.year}</text>
+      ))}
+      {/* Month labels */}
+      {months.map(m => (
+        <text
+          key={`m-${m.label}-${m.x}`}
+          x={m.x + m.width / 2}
+          y={42}
+          textAnchor="middle"
+          fill="#42526E"
+          fontSize="10"
+        >{m.label}</text>
+      ))}
+      {/* Tick lines between months */}
+      {months.map((m, i) => (
+        <line
+          key={`tick-${i}`}
+          x1={m.x} y1={HEADER_HEIGHT - 8}
+          x2={m.x} y2={HEADER_HEIGHT}
+          stroke="#DFE1E6"
+          strokeWidth="1"
+        />
+      ))}
+      {/* Today indicator in header */}
+      {todayX != null && todayX >= 0 && todayX <= totalWidth && (
+        <g>
+          <line x1={todayX} y1={HEADER_HEIGHT - 8} x2={todayX} y2={HEADER_HEIGHT}
+            stroke="#DE350B" strokeWidth="2" />
+          <text x={todayX} y={HEADER_HEIGHT - 12} textAnchor="middle"
+            fill="#DE350B" fontSize="9" fontWeight="600">Today</text>
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function GanttBody({ tasks, months, dateRange, totalWidth, issueColors, todayX, onSelectIssue }) {
+  const totalHeight = tasks.length * ROW_HEIGHT;
+
+  const barX = (taskStart) => {
+    const days = (new Date(taskStart) - dateRange.start) / (1000 * 60 * 60 * 24);
+    return days * PX_PER_DAY;
+  };
+
+  const barW = (taskStart, taskEnd) => {
+    const days = (new Date(taskEnd) - new Date(taskStart)) / (1000 * 60 * 60 * 24);
+    return Math.max(days * PX_PER_DAY, MIN_BAR_W);
+  };
+
+  // Build month tick positions
+  const monthTicks = [];
+  let tx = 0;
+  for (const m of months) {
+    monthTicks.push(tx);
+    tx += m.width;
+  }
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={totalWidth}
+      height={totalHeight}
+      style={{ display: 'block' }}
+    >
+      {/* Grid rows */}
+      {tasks.map((task, i) => {
+        const y = i * ROW_HEIGHT;
+        const isEven = i % 2 === 1;
+        return (
+          <g key={`row-${task.id}`}>
+            <rect x={0} y={y} width={totalWidth} height={ROW_HEIGHT}
+              fill={isEven ? '#FAFBFC' : '#fff'} />
+            <line x1={0} y1={y + ROW_HEIGHT} x2={totalWidth} y2={y + ROW_HEIGHT}
+              stroke="#F4F5F7" strokeWidth="1" />
+          </g>
+        );
+      })}
+
+      {/* Month tick lines */}
+      {monthTicks.map((x, i) => (
+        <line key={`mtick-${i}`} x1={x} y1={0} x2={x} y2={totalHeight}
+          stroke={i % 3 === 0 ? '#DFE1E6' : '#F4F5F7'} strokeWidth="1" />
+      ))}
+
+      {/* Today line */}
+      {todayX != null && todayX >= 0 && todayX <= totalWidth && (
+        <g>
+          <line x1={todayX} y1={0} x2={todayX} y2={totalHeight}
+            stroke="#DE350B" strokeWidth="1.5" strokeDasharray="6,4" opacity="0.7" />
+          <circle cx={todayX} cy={4} r="4" fill="#DE350B" />
+        </g>
+      )}
+
+      {/* Bars */}
+      {tasks.map((task, i) => {
+        const x = barX(task.start);
+        const w = barW(task.start, task.end);
+        const y = i * ROW_HEIGHT + BAR_V_OFFSET;
+        const color = issueColors[task.id] || '#0052CC';
+        const isDone = task.progress >= 100;
+        return (
+          <g key={`bar-${task.id}`}
+            className="gantt-bar-group"
+            onClick={() => onSelectIssue(task.id)}
+            style={{ cursor: 'pointer' }}
+          >
+            <rect x={x} y={y} width={w} height={BAR_HEIGHT} rx="3" ry="3"
+              fill={isDone ? '#97A0AF' : color}
+              className="gantt-bar"
+            />
+            <text x={x + w + 5} y={y + BAR_HEIGHT / 2}
+              dominantBaseline="middle"
+              fill="#172B4D" fontSize="11"
+              className="gantt-bar-label"
+            >{task.name}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ---- Main Timeline component ----
+
 export default function Timeline({ onSelectIssue }) {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,9 +222,6 @@ export default function Timeline({ onSelectIssue }) {
   const [selectedComponents, setSelectedComponents] = useState({});
   const [expandedComponents, setExpandedComponents] = useState({});
   const [hideDone, setHideDone] = useState(false);
-  const ganttContainerRef = useRef(null);
-  const ganttRef = useRef(null);
-  const headerRef = useRef(null);
 
   useEffect(() => {
     const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
@@ -161,6 +311,7 @@ export default function Timeline({ onSelectIssue }) {
     return colors;
   }, [activeNames, issues, selectedComponents, allComponents, hideDone]);
 
+  // Build task list for the Gantt
   const tasks = useMemo(() => {
     if (activeNames.length === 0) return [];
     const filtered = issues.filter(i => {
@@ -173,147 +324,82 @@ export default function Timeline({ onSelectIssue }) {
       return sa.localeCompare(sb);
     });
     return sorted.map(issue => {
-      const start = issue.start_date || issue.due_date || '';
-      const end = issue.due_date || issue.start_date || '';
+      const startRaw = issue.start_date || issue.due_date || '';
+      const endRaw = issue.due_date || issue.start_date || '';
       return {
         id: issue.key,
         name: `${issue.key}: ${issue.summary}`,
-        start: start.split('T')[0],
-        end: end.split('T')[0],
+        start: startRaw.split('T')[0],
+        end: endRaw.split('T')[0],
         progress: issue.status_category === 'Done' ? 100 : 0,
-        dependencies: '',
       };
     }).filter(t => t.start && t.end);
   }, [issues, selectedComponents, hideDone]);
 
-  // Inject CSS for bar colors
-  useEffect(() => {
-    const styleId = 'gantt-comp-styles';
-    let styleEl = document.getElementById(styleId);
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = styleId;
-      document.head.appendChild(styleEl);
+  // Compute date range (padded to year boundaries)
+  const dateRange = useMemo(() => {
+    if (tasks.length === 0) return { start: new Date(), end: new Date() };
+    let min = null, max = null;
+    for (const t of tasks) {
+      const s = new Date(t.start + 'T00:00:00');
+      const e = new Date(t.end + 'T00:00:00');
+      if (!min || s < min) min = s;
+      if (!max || e > max) max = e;
     }
-    styleEl.textContent = Object.entries(issueColors)
-      .map(([key, color]) => `.bar-wrapper[data-id="${key}"] .bar { fill: ${color} !important; }`)
-      .join('\n');
-    return () => {
-      const el = document.getElementById(styleId);
-      if (el) el.textContent = '';
-    };
-  }, [issueColors]);
+    min = new Date(min.getFullYear(), 0, 1);
+    max = new Date(max.getFullYear() + 1, 0, 1);
+    return { start: min, end: max };
+  }, [tasks]);
 
-  // Render Gantt
-  useEffect(() => {
-    const container = ganttContainerRef.current;
-    if (!container || tasks.length === 0) return;
-
-    // Clean up previous
-    if (ganttRef.current) {
-      container.innerHTML = '';
-      ganttRef.current = null;
-    }
-
-    try {
-      ganttRef.current = new Gantt(container, tasks, {
-        view_mode: 'Month',
-        date_format: 'YYYY-MM-DD',
-        bar_height: 24,
-        padding: 18,
-        on_click: (task) => onSelectIssue(task.id),
-        custom_popup_html: (task) =>
-          `<div class="gantt-popup"><strong>${task.id}</strong><br/>${task.name}<br/>Progress: ${task.progress}%</div>`,
+  // Build month array with positions
+  const months = useMemo(() => {
+    const result = [];
+    let x = 0;
+    const d = new Date(dateRange.start);
+    while (d < dateRange.end) {
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const width = daysInMonth * PX_PER_DAY;
+      result.push({
+        label: d.toLocaleString('default', { month: 'short' }),
+        year,
+        x,
+        width,
+        daysInMonth,
       });
-
-      requestAnimationFrame(() => {
-        if (!container || !ganttRef.current) return;
-        const svg = container.querySelector('svg');
-        if (!svg) return;
-
-        // Apply colors, position labels
-        const wrappers = container.querySelectorAll('.bar-wrapper');
-        for (const w of wrappers) {
-          const taskId = w.getAttribute('data-id');
-          if (taskId && issueColors[taskId]) {
-            const bar = w.querySelector('.bar');
-            if (bar) bar.style.fill = issueColors[taskId];
-          }
-          const label = w.querySelector('.bar-label');
-          const bar = w.querySelector('.bar');
-          if (label && bar) {
-            const bx = parseFloat(bar.getAttribute('x') || 0);
-            const bw = parseFloat(bar.getAttribute('width') || 0);
-            label.setAttribute('x', bx + bw + 5);
-            label.classList.add('big');
-          }
-        }
-
-        // Today line
-        const gantt = ganttRef.current;
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        const start = new Date(gantt.gantt_start); start.setHours(0, 0, 0, 0);
-        const todayX = (((today - start) / (1000 * 60 * 60)) / gantt.options.step) * gantt.options.column_width;
-        const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [];
-        const svgH = vb[3] || parseFloat(svg.getAttribute('height') || '800');
-
-        let todayGroup = document.getElementById('today-indicator');
-        if (todayGroup) todayGroup.remove();
-        todayGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        todayGroup.id = 'today-indicator';
-
-        const headerH = gantt.options.header_height; // 50
-
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', todayX); line.setAttribute('y1', headerH);
-        line.setAttribute('x2', todayX); line.setAttribute('y2', svgH);
-        line.setAttribute('stroke', '#DE350B');
-        line.setAttribute('stroke-width', '1.5');
-        line.setAttribute('stroke-dasharray', '6,4');
-        line.setAttribute('opacity', '0.7');
-        todayGroup.appendChild(line);
-
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', todayX); circle.setAttribute('cy', headerH);
-        circle.setAttribute('r', '4');
-        circle.setAttribute('fill', '#DE350B');
-        todayGroup.appendChild(circle);
-
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', todayX); text.setAttribute('y', headerH - 7);
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('fill', '#DE350B');
-        text.setAttribute('font-size', '10');
-        text.setAttribute('font-weight', '600');
-        text.textContent = 'Today';
-        todayGroup.appendChild(text);
-
-        svg.appendChild(todayGroup);
-
-        // Copy date header to pinned div, hide original
-        const dateGroup = svg.querySelector('g.date');
-        const pinned = headerRef.current;
-        if (dateGroup && pinned) {
-          const pinnedSvg = pinned.querySelector('svg');
-          if (pinnedSvg) {
-            const svgW = svg.getAttribute('width') || svg.getAttribute('viewBox')?.split(' ')[2] || '100%';
-            pinnedSvg.setAttribute('width', svgW);
-            pinnedSvg.setAttribute('height', headerH);
-            pinnedSvg.innerHTML = dateGroup.outerHTML;
-          }
-          dateGroup.setAttribute('visibility', 'hidden');
-        }
-      });
-    } catch (e) {
-      console.error('Gantt render error:', e);
+      x += width;
+      d.setMonth(d.getMonth() + 1);
     }
+    return result;
+  }, [dateRange]);
 
-    return () => {
-      if (container) container.innerHTML = '';
-      ganttRef.current = null;
-    };
-  }, [tasks, issueColors]);
+  // Build year label positions
+  const years = useMemo(() => {
+    const result = [];
+    let lastYear = null;
+    for (const m of months) {
+      if (m.year !== lastYear) {
+        const yearMonths = months.filter(mm => mm.year === m.year);
+        const totalWidth = yearMonths.reduce((s, mm) => s + mm.width, 0);
+        result.push({ year: m.year, x: m.x, width: totalWidth });
+        lastYear = m.year;
+      }
+    }
+    return result;
+  }, [months]);
 
+  // Total chart width
+  const totalWidth = useMemo(() => {
+    return months.reduce((s, m) => s + m.width, 0);
+  }, [months]);
+
+  // Today X position
+  const todayX = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = (today - dateRange.start) / (1000 * 60 * 60 * 24);
+    return days * PX_PER_DAY;
+  }, [dateRange]);
 
   if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
   if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
@@ -400,10 +486,20 @@ export default function Timeline({ onSelectIssue }) {
             <div className="timeline-gantt-wrap">
               <div className="timeline-gantt-hscroll">
                 <div className="timeline-gantt-inner">
-                  <div className="gantt-header-pinned" ref={headerRef}>
-                    <svg xmlns="http://www.w3.org/2000/svg"></svg>
+                  <div className="gantt-header">
+                    <GanttHeader months={months} years={years} totalWidth={totalWidth} todayX={todayX} />
                   </div>
-                  <div ref={ganttContainerRef} className="timeline-gantt" />
+                  <div className="timeline-gantt-body">
+                    <GanttBody
+                      tasks={tasks}
+                      months={months}
+                      dateRange={dateRange}
+                      totalWidth={totalWidth}
+                      issueColors={issueColors}
+                      todayX={todayX}
+                      onSelectIssue={onSelectIssue}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
