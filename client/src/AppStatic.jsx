@@ -87,6 +87,7 @@ function parseIssue(issue) {
     sprint: sprintName,
     priority: f.priority ? f.priority.name : '',
     components: (f.components || []).map(c => ({ id: c.id, name: c.name })),
+    project_key: f.project ? f.project.key : '',
     created: f.created || null,
     updated: f.updated || null,
     comments: [],
@@ -390,6 +391,7 @@ export default function AppStatic() {
   const [sprintFilter, setSprintFilter] = useState({});
   const [typeFilter, setTypeFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [projectFilter, setProjectFilter] = useState({});
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('tickets');
   const [showCreate, setShowCreate] = useState(false);
@@ -470,22 +472,28 @@ export default function AppStatic() {
     sprintFilter, onSprintFilterChange: setSprintFilter,
     typeFilter, onTypeFilterChange: setTypeFilter,
     priorityFilter, onPriorityFilterChange: setPriorityFilter,
+    projectFilter, onProjectFilterChange: setProjectFilter,
   };
 
   function clearAllFilters() {
-    setFilters({ assignee: true, reporter: true, tester: true });
-    const defaults = {};
+    setFilters({ assignee: false, reporter: false, tester: false });
+    setStatusFilter({});
+    setSprintFilter({});
+    setTypeFilter('');
+    setPriorityFilter('');
+    setProjectFilter({});
+    setSearch('');
+  }
+
+  function resetToUndone() {
+    const undone = {};
     const TWO_COL_ORDER = ['Backlog','UAT','To Do','Ready for deployment','In Progress','Done','Ready for UAT','On Hold'];
     for (const i of issues) {
       if (!i.status) continue;
       const norm = TWO_COL_ORDER.find(s => s.toLowerCase() === i.status.toLowerCase()) || i.status;
-      if (norm.toLowerCase() !== 'done') defaults[norm] = true;
+      if (norm.toLowerCase() !== 'done') undone[norm] = true;
     }
-    setStatusFilter(defaults);
-    setSprintFilter({});
-    setTypeFilter('');
-    setPriorityFilter('');
-    setSearch('');
+    setStatusFilter(undone);
   }
 
   return (
@@ -515,11 +523,15 @@ export default function AppStatic() {
 
               <div className="filter-section">
                 <div className="filter-section-label">Role</div>
-                <div className="filter-toggles">
-                  {['assignee', 'reporter', 'tester'].map(role => (
-                    <label key={role} className="filter-toggle">
-                      <input type="checkbox" checked={filters[role]} onChange={e => setFilters({ ...filters, [role]: e.target.checked })} />
-                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                <div className="filter-chips">
+                  {[
+                    { key: 'assignee', label: 'Assignee' },
+                    { key: 'reporter', label: 'Reporter' },
+                    { key: 'tester', label: 'Tester' },
+                  ].map(({ key, label }) => (
+                    <label key={key} className={`filter-chip ${filters[key] ? 'active' : ''}`}>
+                      <input type="checkbox" checked={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.checked })} />
+                      {label}
                     </label>
                   ))}
                 </div>
@@ -549,6 +561,26 @@ export default function AppStatic() {
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Project filter */}
+              {(() => {
+                const projects = [...new Set(issues.map(i => i.project_key).filter(Boolean))].sort();
+                if (!projects.length) return null;
+                return (
+                  <div className="filter-section">
+                    <div className="filter-section-label">Project</div>
+                    <div className="filter-chips">
+                      {projects.map(p => (
+                        <label key={p} className={`filter-chip ${projectFilter[p] ? 'active' : ''}`}>
+                          <input type="checkbox" checked={projectFilter[p] || false}
+                            onChange={e => setProjectFilter({ ...projectFilter, [p]: e.target.checked })} />
+                          {p}
+                        </label>
+                      ))}
                     </div>
                   </div>
                 );
@@ -609,7 +641,10 @@ export default function AppStatic() {
                 );
               })()}
 
-              <button className="filter-clear-btn" onClick={clearAllFilters}>Clear All Filters</button>
+              <div className="filter-actions">
+                <button className="filter-undone-btn" onClick={resetToUndone}>Undone</button>
+                <button className="filter-clear-btn" onClick={clearAllFilters}>Clear All</button>
+              </div>
             </div>
           </div>
         )}
