@@ -86,7 +86,6 @@
   margin-top: 4px;
 }
 .filter-undone-btn {
-  flex: 1;
   padding: 6px 10px;
   border: 1px solid #DFE1E6;
   border-radius: 4px;
@@ -99,7 +98,6 @@
   background: #DEEBFF;
 }
 .filter-clear-btn {
-  flex: 1;
   padding: 6px 10px;
   border: 1px solid #DFE1E6;
   border-radius: 4px;

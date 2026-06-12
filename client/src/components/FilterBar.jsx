@@ -106,7 +106,7 @@ export default function FilterBar({
       </div>
 
       <ChipGroup label="Status" items={statuses} selected={statusFilter} onChange={onStatusFilterChange} />
-      {projects.length > 1 && <ChipGroup label="Project" items={projects} selected={projectFilter} onChange={onProjectFilterChange} />}
+      {projects.length > 0 && <ChipGroup label="Project" items={projects} selected={projectFilter} onChange={onProjectFilterChange} />}
       <DropdownFilter label="Sprint" items={sprints} selected={sprintFilter} onChange={onSprintFilterChange} />
       <DropdownFilter label="Type" items={types} selected={typeFilter} onChange={onTypeFilterChange} />
       <DropdownFilter label="Priority" items={priorities} selected={priorityFilter} onChange={onPriorityFilterChange} />
