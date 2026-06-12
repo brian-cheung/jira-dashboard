@@ -21,6 +21,33 @@ function ChipGroup({ label, items, selected, onChange }) {
   );
 }
 
+function MultiSelectFilter({ label, items, selected, onChange }) {
+  const activeCount = Object.values(selected).filter(Boolean).length;
+  return (
+    <div className="filter-section">
+      <label className="filter-section-label">{label}</label>
+      <div className="multi-select" tabIndex="0" onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('open');
+      }}>
+        <div className="multi-select-trigger" onClick={e => {
+          e.currentTarget.parentElement.classList.toggle('open');
+        }}>
+          {activeCount > 0 ? `${activeCount} selected` : 'All ' + label.toLowerCase()}
+        </div>
+        <div className="multi-select-dropdown">
+          {items.map(item => (
+            <label key={item} className="multi-select-option">
+              <input type="checkbox" checked={selected[item] || false}
+                onChange={e => onChange({ ...selected, [item]: e.target.checked })} />
+              {item}
+            </label>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DropdownFilter({ label, items, selected, onChange }) {
   return (
     <div className="filter-section">
@@ -93,20 +120,18 @@ export default function FilterBar({
         <div className="filter-section-label">Role</div>
         <div className="filter-chips">
           {roles.map(({ key, label }) => (
-            <label key={key} className={`filter-chip ${filters[key] ? 'active' : ''}`}>
-              <input
-                type="checkbox"
-                checked={filters[key]}
-                onChange={e => onFiltersChange({ ...filters, [key]: e.target.checked })}
-              />
+            <button key={key} className={`filter-chip ${filters[key] ? 'active' : ''}`}
+              onClick={() => onFiltersChange({ ...filters, [key]: !filters[key] })}>
               {label}
-            </label>
+            </button>
           ))}
         </div>
       </div>
 
       <ChipGroup label="Status" items={statuses} selected={statusFilter} onChange={onStatusFilterChange} />
-      {projects.length > 0 && <ChipGroup label="Project" items={projects} selected={projectFilter} onChange={onProjectFilterChange} />}
+      {projects.length > 0 && (
+        <MultiSelectFilter label="Project" items={projects} selected={projectFilter} onChange={onProjectFilterChange} />
+      )}
       <DropdownFilter label="Sprint" items={sprints} selected={sprintFilter} onChange={onSprintFilterChange} />
       <DropdownFilter label="Type" items={types} selected={typeFilter} onChange={onTypeFilterChange} />
       <DropdownFilter label="Priority" items={priorities} selected={priorityFilter} onChange={onPriorityFilterChange} />

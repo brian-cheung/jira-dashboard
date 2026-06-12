@@ -529,10 +529,10 @@ export default function AppStatic() {
                     { key: 'reporter', label: 'Reporter' },
                     { key: 'tester', label: 'Tester' },
                   ].map(({ key, label }) => (
-                    <label key={key} className={`filter-chip ${filters[key] ? 'active' : ''}`}>
-                      <input type="checkbox" checked={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.checked })} />
+                    <button key={key} className={`filter-chip ${filters[key] ? 'active' : ''}`}
+                      onClick={() => setFilters({ ...filters, [key]: !filters[key] })}>
                       {label}
-                    </label>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -570,17 +570,27 @@ export default function AppStatic() {
               {(() => {
                 const projects = [...new Set(issues.map(i => i.project_key).filter(Boolean))].sort();
                 if (!projects.length) return null;
+                const activeCount = Object.values(projectFilter).filter(Boolean).length;
                 return (
                   <div className="filter-section">
-                    <div className="filter-section-label">Project</div>
-                    <div className="filter-chips">
-                      {projects.map(p => (
-                        <label key={p} className={`filter-chip ${projectFilter[p] ? 'active' : ''}`}>
-                          <input type="checkbox" checked={projectFilter[p] || false}
-                            onChange={e => setProjectFilter({ ...projectFilter, [p]: e.target.checked })} />
-                          {p}
-                        </label>
-                      ))}
+                    <label className="filter-section-label">Project</label>
+                    <div className="multi-select" tabIndex="0" onBlur={e => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('open');
+                    }}>
+                      <div className="multi-select-trigger" onClick={e => {
+                        e.currentTarget.parentElement.classList.toggle('open');
+                      }}>
+                        {activeCount > 0 ? `${activeCount} selected` : 'All projects'}
+                      </div>
+                      <div className="multi-select-dropdown">
+                        {projects.map(p => (
+                          <label key={p} className="multi-select-option">
+                            <input type="checkbox" checked={projectFilter[p] || false}
+                              onChange={e => setProjectFilter({ ...projectFilter, [p]: e.target.checked })} />
+                            {p}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 );
