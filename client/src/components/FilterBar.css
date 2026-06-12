@@ -67,6 +67,15 @@
   border-color: #0052CC;
   color: #0052CC;
 }
+.filter-chips-inline {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+}
+.filter-chips-inline .filter-chip {
+  padding: 2px 8px;
+  font-size: 9px;
+}
 .filter-select {
   padding: 5px 8px;
   border: 1px solid #DFE1E6;

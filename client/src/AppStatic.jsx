@@ -517,7 +517,7 @@ export default function AppStatic() {
 
               <div className="filter-section">
                 <div className="filter-section-label">Role</div>
-                <div className="filter-chips">
+                <div className="filter-chips-inline">
                   {[
                     { key: 'assignee', label: 'Assignee' },
                     { key: 'reporter', label: 'Reporter' },

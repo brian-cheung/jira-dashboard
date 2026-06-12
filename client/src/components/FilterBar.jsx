@@ -118,7 +118,7 @@ export default function FilterBar({
 
       <div className="filter-section">
         <div className="filter-section-label">Role</div>
-        <div className="filter-chips">
+        <div className="filter-chips-inline">
           {roles.map(({ key, label }) => (
             <button key={key} className={`filter-chip ${filters[key] ? 'active' : ''}`}
               onClick={() => onFiltersChange({ ...filters, [key]: !filters[key] })}>
