@@ -201,9 +201,8 @@ function GanttBody({ tasks, months, dateRange, totalWidth, issueColors, todayX, 
               fill={isDone ? '#97A0AF' : color}
               className="gantt-bar"
             />
-            <text x={x + w + 5} y={y + BAR_HEIGHT / 2}
-              dominantBaseline="middle"
-              fill="#172B4D" fontSize="11"
+            <text x={x + 2} y={y - 2}
+              fill="#42526E" fontSize="10"
               className="gantt-bar-label"
             >{task.name}</text>
           </g>
