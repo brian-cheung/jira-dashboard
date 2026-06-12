@@ -187,13 +187,7 @@ function ConfigScreen({ onConfigured }) {
             <label>JQL Query <span className="config-optional">optional</span></label>
             <input type="text" value={jql} onChange={e => setJql(e.target.value)} placeholder="Default: issues assigned to, reported by, or tested by you" />
           </div>
-          <div className="config-field">
-            <label>Backend Proxy URL <span className="config-optional">needed for browser access</span></label>
-            <input type="text" value={backendUrl} onChange={e => setBackendUrl(e.target.value)} placeholder="e.g. https://your-app.onrender.com — leave blank to try direct access" />
-            <span className="config-hint">
-              JIRA blocks browser requests. Deploy a free proxy on <a href="https://render.com" target="_blank" rel="noopener noreferrer">Render →</a> or run the included server locally
-            </span>
-          </div>
+          <input type="hidden" value={backendUrl} />
 
           {error && <div className="config-error">{error}</div>}
 
