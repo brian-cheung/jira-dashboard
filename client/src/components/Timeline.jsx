@@ -68,6 +68,8 @@ const BAR_V_OFFSET = 9;      // padding above bar within row
 const HEADER_HEIGHT = 50;
 const PX_PER_DAY = 4;        // 120 / 30
 const MIN_BAR_W = 3;
+const GROUP_HEADER_H = 28;   // height of component group separator row
+const GROUP_LABEL_W = 280;   // reserved width for component name text
 
 // ---- Gantt sub-components ----
 
@@ -117,98 +119,150 @@ function GanttHeader({ months, years, totalWidth, todayX }) {
       {/* Today indicator in header */}
       {todayX != null && todayX >= 0 && todayX <= totalWidth && (
         <g>
-          <line x1={todayX} y1={HEADER_HEIGHT - 8} x2={todayX} y2={HEADER_HEIGHT}
+          <line x1={todayX} y1={0} x2={todayX} y2={HEADER_HEIGHT}
             stroke="#DE350B" strokeWidth="2" />
-          <text x={todayX} y={HEADER_HEIGHT - 12} textAnchor="middle"
-            fill="#DE350B" fontSize="9" fontWeight="600">Today</text>
+          <rect x={todayX - 20} y={2} width={40} height={16} rx={3} fill="#DE350B" />
+          <text x={todayX} y={14} textAnchor="middle"
+            fill="#fff" fontSize="9" fontWeight="600">Today</text>
         </g>
       )}
     </svg>
   );
 }
 
-function GanttBody({ tasks, months, dateRange, totalWidth, issueColors, todayX, onSelectIssue }) {
-  const totalHeight = tasks.length * ROW_HEIGHT;
+function GanttBody({ taskGroups, months, dateRange, totalWidth, issueColors, todayX, onSelectIssue, scrollTop }) {
+  const rows = [];
+  let y = 0;
+  for (let g = 0; g < taskGroups.length; g++) {
+    const group = taskGroups[g];
+    rows.push({ type: 'header', groupIdx: g, y, color: group.color, name: group.compName, count: group.tasks.length });
+    y += GROUP_HEADER_H;
+    for (let t = 0; t < group.tasks.length; t++) {
+      rows.push({ type: 'task', groupIdx: g, taskIdx: t, task: group.tasks[t], y });
+      y += ROW_HEIGHT;
+    }
+  }
+  const totalHeight = y;
 
   const barX = (taskStart) => {
     const days = (new Date(taskStart) - dateRange.start) / (1000 * 60 * 60 * 24);
     return days * PX_PER_DAY;
   };
-
   const barW = (taskStart, taskEnd) => {
     const days = (new Date(taskEnd) - new Date(taskStart)) / (1000 * 60 * 60 * 24);
     return Math.max(days * PX_PER_DAY, MIN_BAR_W);
   };
 
-  // Build month tick positions
   const monthTicks = [];
   let tx = 0;
-  for (const m of months) {
-    monthTicks.push(tx);
-    tx += m.width;
-  }
+  for (const m of months) { monthTicks.push(tx); tx += m.width; }
 
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={totalWidth}
-      height={totalHeight}
-      style={{ display: 'block' }}
-    >
-      {/* Grid rows */}
-      {tasks.map((task, i) => {
-        const y = i * ROW_HEIGHT;
-        const isEven = i % 2 === 1;
-        return (
-          <g key={`row-${task.id}`}>
-            <rect x={0} y={y} width={totalWidth} height={ROW_HEIGHT}
-              fill={isEven ? '#FAFBFC' : '#fff'} />
-            <line x1={0} y1={y + ROW_HEIGHT} x2={totalWidth} y2={y + ROW_HEIGHT}
-              stroke="#F4F5F7" strokeWidth="1" />
-          </g>
-        );
-      })}
+    <div style={{ position: 'relative', width: totalWidth, height: totalHeight }}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={totalWidth}
+        height={totalHeight}
+        style={{ display: 'block' }}
+      >
+        {/* Grid rows */}
+        {rows.filter(r => r.type === 'task').map((r, i) => {
+          const isEven = i % 2 === 1;
+          return (
+            <g key={`row-${r.task.id}-${r.groupIdx}`}>
+              <rect x={0} y={r.y} width={totalWidth} height={ROW_HEIGHT}
+                fill={isEven ? '#FAFBFC' : '#fff'} />
+              <line x1={0} y1={r.y + ROW_HEIGHT} x2={totalWidth} y2={r.y + ROW_HEIGHT}
+                stroke="#F4F5F7" strokeWidth="1" />
+            </g>
+          );
+        })}
 
-      {/* Month tick lines */}
-      {monthTicks.map((x, i) => (
-        <line key={`mtick-${i}`} x1={x} y1={0} x2={x} y2={totalHeight}
-          stroke={i % 3 === 0 ? '#DFE1E6' : '#F4F5F7'} strokeWidth="1" />
+        {/* Group header background rows */}
+        {rows.filter(r => r.type === 'header').map(r => (
+          <g key={`group-hdr-${r.groupIdx}`}>
+            <rect x={0} y={r.y} width={totalWidth} height={GROUP_HEADER_H}
+              fill={r.color + '08'} />
+            <line x1={0} y1={r.y + GROUP_HEADER_H} x2={totalWidth} y2={r.y + GROUP_HEADER_H}
+              stroke={r.color + '20'} strokeWidth="1" />
+          </g>
+        ))}
+
+        {/* Month tick lines */}
+        {monthTicks.map((x, i) => (
+          <line key={`mtick-${i}`} x1={x} y1={0} x2={x} y2={totalHeight}
+            stroke={i % 3 === 0 ? '#DFE1E6' : '#F4F5F7'} strokeWidth="1" />
+        ))}
+
+        {/* Today line */}
+        {todayX != null && todayX >= 0 && todayX <= totalWidth && (
+          <g>
+            <line x1={todayX} y1={0} x2={todayX} y2={totalHeight}
+              stroke="#DE350B" strokeWidth="1.5" strokeDasharray="6,4" opacity="0.7" />
+            <circle cx={todayX} cy={4} r="4" fill="#DE350B" />
+          </g>
+        )}
+
+        {/* Bars */}
+        {rows.filter(r => r.type === 'task').map(r => {
+          const task = r.task;
+          const x = barX(task.start);
+          const w = barW(task.start, task.end);
+          const barY = r.y + BAR_V_OFFSET;
+          const color = issueColors[task.id] || '#0052CC';
+          const isDone = task.progress >= 100;
+          return (
+            <g key={`bar-${task.id}-${r.groupIdx}`}
+              className="gantt-bar-group"
+              onClick={() => onSelectIssue(task.id)}
+              style={{ cursor: 'pointer' }}
+            >
+              <rect x={x} y={barY} width={w} height={BAR_HEIGHT} rx="3" ry="3"
+                fill={isDone ? '#97A0AF' : color}
+                className="gantt-bar"
+              />
+              <text x={x + 2} y={barY - 2}
+                fill="#42526E" fontSize="10"
+                className="gantt-bar-label"
+              >{task.name}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// Group header labels overlay (fixed on the left, scrolls vertically with the body)
+function GroupOverlay({ taskGroups }) {
+  const rows = [];
+  let y = 0;
+  for (let g = 0; g < taskGroups.length; g++) {
+    const group = taskGroups[g];
+    rows.push({ type: 'header', groupIdx: g, y, color: group.color, name: group.compName, count: group.tasks.length });
+    y += GROUP_HEADER_H;
+    y += group.tasks.length * ROW_HEIGHT;
+  }
+  return (
+    <div style={{ position: 'relative', pointerEvents: 'none' }}>
+      {rows.map(r => (
+        <div key={`overlay-hdr-${r.groupIdx}`}
+          style={{
+            position: 'absolute', top: r.y, left: 0, right: 0,
+            height: GROUP_HEADER_H,
+            display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 14, paddingRight: 14,
+            background: r.color + '14', borderBottom: `1px solid ${r.color}35`,
+            borderLeft: `4px solid ${r.color}`, boxSizing: 'border-box',
+          }}>
+          <span style={{ fontWeight: 600, fontSize: 12, color: '#172B4D', whiteSpace: 'nowrap' }}>
+            {r.name}
+          </span>
+          <span style={{ fontSize: 10, color: '#6B778C', flexShrink: 0 }}>
+            {r.count} item{r.count !== 1 ? 's' : ''}
+          </span>
+        </div>
       ))}
-
-      {/* Today line */}
-      {todayX != null && todayX >= 0 && todayX <= totalWidth && (
-        <g>
-          <line x1={todayX} y1={0} x2={todayX} y2={totalHeight}
-            stroke="#DE350B" strokeWidth="1.5" strokeDasharray="6,4" opacity="0.7" />
-          <circle cx={todayX} cy={4} r="4" fill="#DE350B" />
-        </g>
-      )}
-
-      {/* Bars */}
-      {tasks.map((task, i) => {
-        const x = barX(task.start);
-        const w = barW(task.start, task.end);
-        const y = i * ROW_HEIGHT + BAR_V_OFFSET;
-        const color = issueColors[task.id] || '#0052CC';
-        const isDone = task.progress >= 100;
-        return (
-          <g key={`bar-${task.id}`}
-            className="gantt-bar-group"
-            onClick={() => onSelectIssue(task.id)}
-            style={{ cursor: 'pointer' }}
-          >
-            <rect x={x} y={y} width={w} height={BAR_HEIGHT} rx="3" ry="3"
-              fill={isDone ? '#97A0AF' : color}
-              className="gantt-bar"
-            />
-            <text x={x + 2} y={y - 2}
-              fill="#42526E" fontSize="10"
-              className="gantt-bar-label"
-            >{task.name}</text>
-          </g>
-        );
-      })}
-    </svg>
+    </div>
   );
 }
 
@@ -222,6 +276,9 @@ export default function Timeline({ onSelectIssue }) {
   const [expandedComponents, setExpandedComponents] = useState({});
   const [hideDone, setHideDone] = useState(false);
   const hscrollRef = useRef(null);
+  const bodyRef = useRef(null);
+  const overlayRef = useRef(null);
+  const [scrollTop, setScrollTop] = useState(0);
 
   useEffect(() => {
     const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
@@ -311,45 +368,62 @@ export default function Timeline({ onSelectIssue }) {
     return colors;
   }, [activeNames, issues, selectedComponents, allComponents, hideDone]);
 
-  // Build task list for the Gantt
-  const tasks = useMemo(() => {
+  // Build task groups for the Gantt (grouped by component when multiple selected)
+  const taskGroups = useMemo(() => {
     if (activeNames.length === 0) return [];
-    const filtered = issues.filter(i => {
-      if (hideDone && i.status_category === 'Done') return false;
-      return i.components && i.components.some(c => selectedComponents[c.name]);
-    });
-    const sorted = [...filtered].sort((a, b) => {
-      const sa = a.start_date || a.due_date || '';
-      const sb = b.start_date || b.due_date || '';
-      return sa.localeCompare(sb);
-    });
-    return sorted.map(issue => {
-      const startRaw = issue.start_date || issue.due_date || '';
-      const endRaw = issue.due_date || issue.start_date || '';
-      return {
-        id: issue.key,
-        name: `${issue.key}: ${issue.summary}`,
-        start: startRaw.split('T')[0],
-        end: endRaw.split('T')[0],
-        progress: issue.status_category === 'Done' ? 100 : 0,
-      };
-    }).filter(t => t.start && t.end);
-  }, [issues, selectedComponents, hideDone]);
+    const groups = [];
+    for (const compName of activeNames) {
+      const filtered = issues.filter(i => {
+        if (hideDone && i.status_category === 'Done') return false;
+        return i.components && i.components.some(c => c.name === compName);
+      });
+      if (filtered.length === 0) continue;
+      const sorted = [...filtered].sort((a, b) => {
+        const sa = a.start_date || a.due_date || '';
+        const sb = b.start_date || b.due_date || '';
+        return sa.localeCompare(sb);
+      });
+      const ci = allComponents.findIndex(c => c.name === compName);
+      const color = COMPONENT_COLORS[ci >= 0 ? ci % COMPONENT_COLORS.length : 0];
+      const tasks = sorted.map(issue => {
+        const startRaw = issue.start_date || issue.due_date || '';
+        const endRaw = issue.due_date || issue.start_date || '';
+        return {
+          id: issue.key,
+          name: `${issue.key}: ${issue.summary}`,
+          start: startRaw.split('T')[0],
+          end: endRaw.split('T')[0],
+          progress: issue.status_category === 'Done' ? 100 : 0,
+        };
+      }).filter(t => t.start && t.end);
+      if (tasks.length > 0) {
+        groups.push({ compName, color, tasks });
+      }
+    }
+    return groups;
+  }, [issues, selectedComponents, hideDone, activeNames, allComponents]);
+
+  const totalTaskCount = useMemo(
+    () => taskGroups.reduce((s, g) => s + g.tasks.length, 0),
+    [taskGroups]
+  );
 
   // Compute date range (padded to year boundaries)
   const dateRange = useMemo(() => {
-    if (tasks.length === 0) return { start: new Date(), end: new Date() };
+    if (taskGroups.length === 0) return { start: new Date(), end: new Date() };
     let min = null, max = null;
-    for (const t of tasks) {
-      const s = new Date(t.start + 'T00:00:00');
-      const e = new Date(t.end + 'T00:00:00');
-      if (!min || s < min) min = s;
-      if (!max || e > max) max = e;
+    for (const g of taskGroups) {
+      for (const t of g.tasks) {
+        const s = new Date(t.start + 'T00:00:00');
+        const e = new Date(t.end + 'T00:00:00');
+        if (!min || s < min) min = s;
+        if (!max || e > max) max = e;
+      }
     }
     min = new Date(min.getFullYear(), 0, 1);
     max = new Date(max.getFullYear() + 1, 0, 1);
     return { start: min, end: max };
-  }, [tasks]);
+  }, [taskGroups]);
 
   // Build month array with positions
   const months = useMemo(() => {
@@ -401,14 +475,14 @@ export default function Timeline({ onSelectIssue }) {
     return days * PX_PER_DAY;
   }, [dateRange]);
 
-  // Scroll to center today on mount / tasks change
+  // Scroll to center today on mount / taskGroups change
   useEffect(() => {
     const el = hscrollRef.current;
-    if (!el || tasks.length === 0) return;
+    if (!el || taskGroups.length === 0) return;
     requestAnimationFrame(() => {
       el.scrollLeft = todayX - el.clientWidth / 2;
     });
-  }, [tasks, todayX]);
+  }, [taskGroups, todayX]);
 
   if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
   if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
@@ -490,24 +564,39 @@ export default function Timeline({ onSelectIssue }) {
         ) : (
           <>
             <div className="timeline-header">
-              <span>{tasks.length} item{tasks.length !== 1 ? 's' : ''} across {activeNames.length} component{activeNames.length !== 1 ? 's' : ''}</span>
+              <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="timeline-gantt-wrap">
-              <div className="timeline-gantt-hscroll" ref={hscrollRef}>
-                <div className="timeline-gantt-inner">
-                  <div className="gantt-header">
-                    <GanttHeader months={months} years={years} totalWidth={totalWidth} todayX={todayX} />
+              <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* Sticky group label overlay — sits on top of the scrollable area, doesn't scroll horizontally */}
+                {taskGroups.length > 0 && (
+                  <div style={{
+                    position: 'absolute', left: 0, right: 0, top: HEADER_HEIGHT, bottom: 0,
+                    zIndex: 10, overflow: 'hidden',
+                    background: 'transparent', pointerEvents: 'none',
+                  }} ref={overlayRef}>
+                    <div style={{ transform: `translateY(-${scrollTop}px)` }}>
+                      <GroupOverlay taskGroups={taskGroups} />
+                    </div>
                   </div>
-                  <div className="timeline-gantt-body">
-                    <GanttBody
-                      tasks={tasks}
-                      months={months}
-                      dateRange={dateRange}
-                      totalWidth={totalWidth}
-                      issueColors={issueColors}
-                      todayX={todayX}
-                      onSelectIssue={onSelectIssue}
-                    />
+                )}
+                <div className="timeline-gantt-hscroll" ref={hscrollRef}>
+                  <div className="timeline-gantt-inner">
+                    <div className="gantt-header">
+                      <GanttHeader months={months} years={years} totalWidth={totalWidth} todayX={todayX} />
+                    </div>
+                    <div className="timeline-gantt-body" ref={bodyRef}
+                      onScroll={(e) => setScrollTop(e.target.scrollTop)}>
+                      <GanttBody
+                        taskGroups={taskGroups}
+                        months={months}
+                        dateRange={dateRange}
+                        totalWidth={totalWidth}
+                        issueColors={issueColors}
+                        todayX={todayX}
+                        onSelectIssue={onSelectIssue}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
