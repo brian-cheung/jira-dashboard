@@ -802,7 +802,17 @@ export default function Timeline({ onSelectIssue }) {
     dMin = new Date(dMin); dMin.setDate(dMin.getDate() - padDays);
     dMax = new Date(dMax); dMax.setDate(dMax.getDate() + padDays);
     const exportDays = (dMax - dMin) / (1000 * 60 * 60 * 24);
-    const exportW = Math.ceil(exportDays * PX_PER_DAY);
+    let exportW = Math.ceil(exportDays * PX_PER_DAY);
+
+    // Pad right side so full task titles are visible in export
+    for (const g of taskGroups) {
+      for (const t of g.tasks) {
+        const barEndX = ((new Date(t.end + 'T00:00:00') - dMin) / (1000 * 60 * 60 * 24)) * PX_PER_DAY;
+        const textW = t.name.length * 6 + 4;
+        const textEnd = barEndX + textW;
+        if (textEnd > exportW) exportW = Math.ceil(textEnd);
+      }
+    }
 
     const headerH = headerSvg ? parseInt(headerSvg.getAttribute('height') || '50') : HEADER_HEIGHT;
     const bodyH = parseInt(bodySvg.getAttribute('height') || '600');
@@ -925,16 +935,6 @@ export default function Timeline({ onSelectIssue }) {
     while (bodyClone.firstChild) {
       bodyG.appendChild(bodyClone.firstChild);
     }
-    // Clip body to export width
-    const clipId = 'export-clip-' + Date.now();
-    const clip = document.createElementNS(svgNS, 'clipPath');
-    clip.setAttribute('id', clipId);
-    const clipRect = document.createElementNS(svgNS, 'rect');
-    clipRect.setAttribute('x', bodyShiftX); clipRect.setAttribute('y', 0);
-    clipRect.setAttribute('width', exportW); clipRect.setAttribute('height', bodyH);
-    clip.appendChild(clipRect);
-    combined.appendChild(clip);
-    bodyG.setAttribute('clip-path', `url(#${clipId})`);
     combined.appendChild(bodyG);
 
     // Render component group header labels into the export SVG
