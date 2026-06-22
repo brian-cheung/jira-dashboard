@@ -838,6 +838,9 @@ export default function Timeline({ onSelectIssue }) {
     const cur = new Date(dMin);
     cur.setDate(1);
     let tickX = 0;
+    let yearStartX = 0;
+    let yearWidth = 0;
+    let yearTrack = cur.getFullYear();
     while (cur < dMax) {
       const daysInMonth = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
       const mW = daysInMonth * PX_PER_DAY;
@@ -851,19 +854,22 @@ export default function Timeline({ onSelectIssue }) {
       label.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
       label.textContent = cur.toLocaleString('default', { month: 'short' });
       hdrG.appendChild(label);
-      // Year label (once per year)
-      if (cur.getMonth() === 0) {
-        const yLabel = document.createElementNS(svgNS, 'text');
-        yLabel.setAttribute('x', tickX + mW / 2);
-        yLabel.setAttribute('y', '20');
-        yLabel.setAttribute('text-anchor', 'middle');
-        yLabel.setAttribute('fill', '#6B778C');
-        yLabel.setAttribute('font-size', '11');
-        yLabel.setAttribute('font-weight', '600');
-        yLabel.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
-        yLabel.textContent = cur.getFullYear();
-        hdrG.appendChild(yLabel);
+      // Year span tracking — flush label at year boundary (skip first month)
+      if (cur.getMonth() === 0 && tickX > 0) {
+        const prevYr = document.createElementNS(svgNS, 'text');
+        prevYr.setAttribute('x', yearStartX + yearWidth / 2);
+        prevYr.setAttribute('y', '20');
+        prevYr.setAttribute('text-anchor', 'middle');
+        prevYr.setAttribute('fill', '#6B778C');
+        prevYr.setAttribute('font-size', '11');
+        prevYr.setAttribute('font-weight', '600');
+        prevYr.textContent = yearTrack;
+        hdrG.appendChild(prevYr);
+        yearStartX = tickX;
+        yearWidth = 0;
+        yearTrack = cur.getFullYear();
       }
+      yearWidth += mW;
       // Tick line
       const tick = document.createElementNS(svgNS, 'line');
       tick.setAttribute('x1', tickX); tick.setAttribute('y1', headerH - 8);
@@ -873,6 +879,16 @@ export default function Timeline({ onSelectIssue }) {
       tickX += mW;
       cur.setMonth(cur.getMonth() + 1);
     }
+    // Flush final year label
+    const finalYr = document.createElementNS(svgNS, 'text');
+    finalYr.setAttribute('x', yearStartX + yearWidth / 2);
+    finalYr.setAttribute('y', '20');
+    finalYr.setAttribute('text-anchor', 'middle');
+    finalYr.setAttribute('fill', '#6B778C');
+    finalYr.setAttribute('font-size', '11');
+    finalYr.setAttribute('font-weight', '600');
+    finalYr.textContent = yearTrack;
+    hdrG.appendChild(finalYr);
     // Today line if in range
     const today = new Date(); today.setHours(0, 0, 0, 0);
     if (today >= dMin && today <= dMax) {
@@ -920,6 +936,48 @@ export default function Timeline({ onSelectIssue }) {
     combined.appendChild(clip);
     bodyG.setAttribute('clip-path', `url(#${clipId})`);
     combined.appendChild(bodyG);
+
+    // Render component group header labels into the export SVG
+    let gy = headerH;
+    for (let g = 0; g < taskGroups.length; g++) {
+      const group = taskGroups[g];
+      const ghdr = document.createElementNS(svgNS, 'g');
+      // Background strip
+      const gr = document.createElementNS(svgNS, 'rect');
+      gr.setAttribute('x', 0); gr.setAttribute('y', gy);
+      gr.setAttribute('width', exportW); gr.setAttribute('height', GROUP_HEADER_H);
+      gr.setAttribute('fill', group.color + '08');
+      ghdr.appendChild(gr);
+      // Left border accent
+      const gb = document.createElementNS(svgNS, 'rect');
+      gb.setAttribute('x', 0); gb.setAttribute('y', gy);
+      gb.setAttribute('width', 4); gb.setAttribute('height', GROUP_HEADER_H);
+      gb.setAttribute('fill', group.color);
+      ghdr.appendChild(gb);
+      // Bottom separator line
+      const gl = document.createElementNS(svgNS, 'line');
+      gl.setAttribute('x1', 0); gl.setAttribute('y1', gy + GROUP_HEADER_H);
+      gl.setAttribute('x2', exportW); gl.setAttribute('y2', gy + GROUP_HEADER_H);
+      gl.setAttribute('stroke', group.color + '20'); gl.setAttribute('stroke-width', '1');
+      ghdr.appendChild(gl);
+      // Title text
+      const gt = document.createElementNS(svgNS, 'text');
+      gt.setAttribute('x', 14); gt.setAttribute('y', gy + GROUP_HEADER_H / 2 + 4);
+      gt.setAttribute('fill', '#172B4D'); gt.setAttribute('font-size', '12');
+      gt.setAttribute('font-weight', '600');
+      gt.textContent = group.compName;
+      ghdr.appendChild(gt);
+      // Item count
+      const gc = document.createElementNS(svgNS, 'text');
+      gc.setAttribute('x', 14 + gt.textContent.length * 7.2 + 10);
+      gc.setAttribute('y', gy + GROUP_HEADER_H / 2 + 4);
+      gc.setAttribute('fill', '#6B778C'); gc.setAttribute('font-size', '10');
+      gc.textContent = group.tasks.length + ' item' + (group.tasks.length !== 1 ? 's' : '');
+      ghdr.appendChild(gc);
+      combined.appendChild(ghdr);
+      gy += GROUP_HEADER_H;
+      gy += group.tasks.length * ROW_HEIGHT;
+    }
 
     // Render to canvas
     const svgStr = new XMLSerializer().serializeToString(combined);
