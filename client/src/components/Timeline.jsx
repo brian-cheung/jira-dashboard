@@ -766,6 +766,54 @@ export default function Timeline({ onSelectIssue }) {
     });
   }, []);
 
+  const saveView = useCallback(() => {
+    const view = {
+      selectedComponents,
+      expandedComponents: {}, // Don't save expanded state
+      componentOrder,
+      statusFilter,
+      dateFrom,
+      dateTo,
+      hiddenComponents,
+      hideDone,
+    };
+    localStorage.setItem('timeline_view', JSON.stringify(view));
+  }, [selectedComponents, componentOrder, statusFilter, dateFrom, dateTo, hiddenComponents, hideDone]);
+
+  // Restore saved view on mount (after issues load)
+  useEffect(() => {
+    if (issues.length === 0) return;
+    try {
+      const raw = localStorage.getItem('timeline_view');
+      if (!raw) return;
+      const view = JSON.parse(raw);
+      // Filter saved selections against currently available components
+      const avail = new Set(allComponents.map(c => c.name));
+      if (view.selectedComponents) {
+        const filtered = {};
+        for (const [k, v] of Object.entries(view.selectedComponents)) {
+          if (v && avail.has(k)) filtered[k] = true;
+        }
+        if (Object.keys(filtered).length > 0) setSelectedComponents(filtered);
+      }
+      if (view.componentOrder) {
+        const filtered = view.componentOrder.filter(n => avail.has(n));
+        if (filtered.length > 0) setComponentOrder(filtered);
+      }
+      if (view.statusFilter) setStatusFilter(view.statusFilter);
+      if (view.dateFrom) setDateFrom(view.dateFrom);
+      if (view.dateTo) setDateTo(view.dateTo);
+      if (view.hiddenComponents) {
+        const filtered = {};
+        for (const [k, v] of Object.entries(view.hiddenComponents)) {
+          if (v && avail.has(k)) filtered[k] = true;
+        }
+        if (Object.keys(filtered).length > 0) setHiddenComponents(filtered);
+      }
+      if (view.hideDone) setHideDone(true);
+    } catch (e) { /* ignore corrupt data */ }
+  }, [issues.length === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const unhideAll = useCallback(() => {
     setHiddenComponents({});
   }, []);
@@ -778,6 +826,7 @@ export default function Timeline({ onSelectIssue }) {
     setHiddenComponents({});
     setHideDone(false);
     setComponentOrder([]);
+    localStorage.removeItem('timeline_view');
   }, []);
 
   const hiddenCount = Object.values(hiddenComponents).filter(Boolean).length;
@@ -1054,6 +1103,11 @@ export default function Timeline({ onSelectIssue }) {
                 style={{ background: 'none', border: 'none', fontSize: 10, color: '#6B778C', cursor: 'pointer', padding: '2px 4px' }}
                 title="Reset all filters"
               >Reset</button>
+              <button
+                onClick={saveView}
+                style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
+                title="Save current view for next visit"
+              >Save</button>
             </div>
           </div>
           <div className="timeline-search-wrap">
