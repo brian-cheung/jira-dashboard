@@ -783,25 +783,159 @@ export default function Timeline({ onSelectIssue }) {
   const hiddenCount = Object.values(hiddenComponents).filter(Boolean).length;
 
   const exportGanttPNG = useCallback(() => {
-    const svgEl = document.querySelector('.timeline-gantt-body svg');
-    if (!svgEl) return;
-    const clone = svgEl.cloneNode(true);
-    const w = svgEl.getAttribute('width');
-    const h = svgEl.getAttribute('height');
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    const serializer = new XMLSerializer();
-    const svgStr = serializer.serializeToString(clone);
+    const headerSvg = document.querySelector('.gantt-header svg');
+    const bodySvg = document.querySelector('.timeline-gantt-body svg');
+    if (!bodySvg || taskGroups.length === 0) return;
+
+    // Compute tight date range from actual items (not year-padded)
+    let dMin = null, dMax = null;
+    for (const g of taskGroups) {
+      for (const t of g.tasks) {
+        const s = new Date(t.start + 'T00:00:00');
+        const e = new Date(t.end + 'T00:00:00');
+        if (!dMin || s < dMin) dMin = s;
+        if (!dMax || e > dMax) dMax = e;
+      }
+    }
+    if (!dMin) return;
+    const padDays = 14;
+    dMin = new Date(dMin); dMin.setDate(dMin.getDate() - padDays);
+    dMax = new Date(dMax); dMax.setDate(dMax.getDate() + padDays);
+    const exportDays = (dMax - dMin) / (1000 * 60 * 60 * 24);
+    const exportW = Math.ceil(exportDays * PX_PER_DAY);
+
+    const headerH = headerSvg ? parseInt(headerSvg.getAttribute('height') || '50') : HEADER_HEIGHT;
+    const bodyH = parseInt(bodySvg.getAttribute('height') || '600');
+    const totalH = headerH + bodyH;
+
+    const bodyClone = bodySvg.cloneNode(true);
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const combined = document.createElementNS(svgNS, 'svg');
+    combined.setAttribute('xmlns', svgNS);
+    combined.setAttribute('width', exportW);
+    combined.setAttribute('height', totalH);
+    combined.setAttribute('viewBox', `0 0 ${exportW} ${totalH}`);
+
+    // Font styles so canvas renders text correctly
+    const style = document.createElementNS(svgNS, 'style');
+    style.textContent = `text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }`;
+    combined.appendChild(style);
+
+    // White background
+    const bg = document.createElementNS(svgNS, 'rect');
+    bg.setAttribute('width', '100%'); bg.setAttribute('height', '100%');
+    bg.setAttribute('fill', '#fff');
+    combined.appendChild(bg);
+
+    // Rebuild header for the export date range
+    const hdrG = document.createElementNS(svgNS, 'g');
+    // Header background
+    const hdrBg = document.createElementNS(svgNS, 'rect');
+    hdrBg.setAttribute('width', exportW); hdrBg.setAttribute('height', headerH);
+    hdrBg.setAttribute('fill', '#FAFBFC');
+    hdrG.appendChild(hdrBg);
+    // Month ticks and labels
+    const cur = new Date(dMin);
+    cur.setDate(1);
+    let tickX = 0;
+    while (cur < dMax) {
+      const daysInMonth = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
+      const mW = daysInMonth * PX_PER_DAY;
+      // Label
+      const label = document.createElementNS(svgNS, 'text');
+      label.setAttribute('x', tickX + mW / 2);
+      label.setAttribute('y', '42');
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('fill', '#42526E');
+      label.setAttribute('font-size', '10');
+      label.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
+      label.textContent = cur.toLocaleString('default', { month: 'short' });
+      hdrG.appendChild(label);
+      // Year label (once per year)
+      if (cur.getMonth() === 0) {
+        const yLabel = document.createElementNS(svgNS, 'text');
+        yLabel.setAttribute('x', tickX + mW / 2);
+        yLabel.setAttribute('y', '20');
+        yLabel.setAttribute('text-anchor', 'middle');
+        yLabel.setAttribute('fill', '#6B778C');
+        yLabel.setAttribute('font-size', '11');
+        yLabel.setAttribute('font-weight', '600');
+        yLabel.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
+        yLabel.textContent = cur.getFullYear();
+        hdrG.appendChild(yLabel);
+      }
+      // Tick line
+      const tick = document.createElementNS(svgNS, 'line');
+      tick.setAttribute('x1', tickX); tick.setAttribute('y1', headerH - 8);
+      tick.setAttribute('x2', tickX); tick.setAttribute('y2', headerH);
+      tick.setAttribute('stroke', '#DFE1E6'); tick.setAttribute('stroke-width', '1');
+      hdrG.appendChild(tick);
+      tickX += mW;
+      cur.setMonth(cur.getMonth() + 1);
+    }
+    // Today line if in range
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (today >= dMin && today <= dMax) {
+      const todayExportX = ((today - dMin) / (1000 * 60 * 60 * 24)) * PX_PER_DAY;
+      const tl = document.createElementNS(svgNS, 'line');
+      tl.setAttribute('x1', todayExportX); tl.setAttribute('y1', 0);
+      tl.setAttribute('x2', todayExportX); tl.setAttribute('y2', headerH);
+      tl.setAttribute('stroke', '#DE350B'); tl.setAttribute('stroke-width', '2');
+      hdrG.appendChild(tl);
+      const tb = document.createElementNS(svgNS, 'rect');
+      tb.setAttribute('x', todayExportX - 20); tb.setAttribute('y', 2);
+      tb.setAttribute('width', 40); tb.setAttribute('height', 16);
+      tb.setAttribute('rx', 3); tb.setAttribute('fill', '#DE350B');
+      hdrG.appendChild(tb);
+      const tt = document.createElementNS(svgNS, 'text');
+      tt.setAttribute('x', todayExportX); tt.setAttribute('y', 14);
+      tt.setAttribute('text-anchor', 'middle');
+      tt.setAttribute('fill', '#fff'); tt.setAttribute('font-size', '9');
+      tt.setAttribute('font-weight', '600');
+      tt.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
+      tt.textContent = 'Today';
+      hdrG.appendChild(tt);
+    }
+    combined.appendChild(hdrG);
+
+    // Shift body into the export date window and below header
+    const bodyShiftX = ((dMin - dateRange.start) / (1000 * 60 * 60 * 24)) * PX_PER_DAY;
+    const bodyG = document.createElementNS(svgNS, 'g');
+    bodyG.setAttribute('transform', `translate(${-bodyShiftX}, ${headerH})`);
+    // Add font-family to all text in body
+    bodyClone.querySelectorAll('text').forEach(t => {
+      t.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
+    });
+    while (bodyClone.firstChild) {
+      bodyG.appendChild(bodyClone.firstChild);
+    }
+    // Clip body to export width
+    const clipId = 'export-clip-' + Date.now();
+    const clip = document.createElementNS(svgNS, 'clipPath');
+    clip.setAttribute('id', clipId);
+    const clipRect = document.createElementNS(svgNS, 'rect');
+    clipRect.setAttribute('x', bodyShiftX); clipRect.setAttribute('y', 0);
+    clipRect.setAttribute('width', exportW); clipRect.setAttribute('height', bodyH);
+    clip.appendChild(clipRect);
+    combined.appendChild(clip);
+    bodyG.setAttribute('clip-path', `url(#${clipId})`);
+    combined.appendChild(bodyG);
+
+    // Render to canvas
+    const svgStr = new XMLSerializer().serializeToString(combined);
     const blob = new Blob([svgStr], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
+      const scale = 2;
       const canvas = document.createElement('canvas');
-      canvas.width = parseInt(w) || 1200;
-      canvas.height = parseInt(h) || 600;
+      canvas.width = exportW * scale;
+      canvas.height = totalH * scale;
       const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
+      ctx.fillRect(0, 0, exportW, totalH);
+      ctx.drawImage(img, 0, 0, exportW, totalH);
       URL.revokeObjectURL(url);
       canvas.toBlob(b => {
         if (!b) return;
@@ -813,7 +947,7 @@ export default function Timeline({ onSelectIssue }) {
       }, 'image/png');
     };
     img.src = url;
-  }, []);
+  }, [taskGroups, dateRange]);
 
   const compIssuesFor = useCallback((c) => (c.issues || []).sort((a, b) => {
     const sa = a.start_date || a.due_date || '';
