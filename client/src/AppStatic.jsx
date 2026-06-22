@@ -638,16 +638,16 @@ export default function AppStatic() {
           </div>
         )}
         <div className="app-content">
-          <div style={{ display: tab === 'tickets' ? 'flex' : 'none', flex: 1, flexDirection: 'column' }}>
+          <div style={tab === 'tickets' ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : { flex: '0 0 0', overflow: 'hidden' }}>
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
           </div>
-          <div style={{ display: tab === 'metrics' ? 'flex' : 'none', flex: 1, flexDirection: 'column' }}>
+          <div style={tab === 'metrics' ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : { flex: '0 0 0', overflow: 'hidden' }}>
             <MetricsDashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} />
           </div>
-          <div style={{ display: tab === 'timeline' ? 'flex' : 'none', flex: 1 }}>
+          <div style={tab === 'timeline' ? { flex: 1, display: 'flex', minHeight: 0 } : { flex: '0 0 0', overflow: 'hidden' }}>
             <Timeline onSelectIssue={setSelectedKey} />
           </div>
-          <div style={{ display: tab === 'setup' ? 'block' : 'none', flex: 1 }}>
+          <div style={tab === 'setup' ? { flex: 1, display: 'block', minHeight: 0 } : { flex: '0 0 0', overflow: 'hidden' }}>
             <div className="setup">
               <div className="setup-section">
                 <h3>Current JQL</h3>
