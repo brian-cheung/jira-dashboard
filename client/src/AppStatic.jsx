@@ -638,13 +638,16 @@ export default function AppStatic() {
           </div>
         )}
         <div className="app-content">
-          {tab === 'tickets' ? (
+          <div style={{ display: tab === 'tickets' ? 'flex' : 'none', flex: 1, flexDirection: 'column' }}>
             <Dashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} selectedKey={selectedKey} />
-          ) : tab === 'metrics' ? (
+          </div>
+          <div style={{ display: tab === 'metrics' ? 'flex' : 'none', flex: 1, flexDirection: 'column' }}>
             <MetricsDashboard {...sharedFilterProps} issues={issues} onSelectIssue={setSelectedKey} />
-          ) : tab === 'timeline' ? (
+          </div>
+          <div style={{ display: tab === 'timeline' ? 'flex' : 'none', flex: 1 }}>
             <Timeline onSelectIssue={setSelectedKey} />
-          ) : (
+          </div>
+          <div style={{ display: tab === 'setup' ? 'block' : 'none', flex: 1 }}>
             <div className="setup">
               <div className="setup-section">
                 <h3>Current JQL</h3>
@@ -660,7 +663,7 @@ export default function AppStatic() {
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
       {tab !== 'setup' && <DetailDrawerStatic issueKey={selectedKey} issues={issues} onClose={() => setSelectedKey(null)} addToast={addToast} />}
