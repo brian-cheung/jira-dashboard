@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import StatusBadge from './StatusBadge';
-import { fetchIssue, updateIssue, fetchTransitions, addComment, uploadAttachment } from '../api';
+import { fetchIssue, addComment, uploadAttachment } from '../api';
 import { useToast } from './Toast';
 import { adfToHtml } from '../adf';
 import './DetailDrawer.css';
@@ -8,12 +8,7 @@ import './DetailDrawer.css';
 export default function DetailDrawer({ issueKey, onClose }) {
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState('');
-  const [description, setDescription] = useState('');
-  const [transitions, setTransitions] = useState([]);
   const [commentText, setCommentText] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [editingDesc, setEditingDesc] = useState(false);
   const addToast = useToast();
 
   useEffect(() => {
@@ -21,42 +16,14 @@ export default function DetailDrawer({ issueKey, onClose }) {
     setLoading(true);
     fetchIssue(issueKey).then(data => {
       setIssue(data);
-      setSummary(data.summary);
-      setDescription(data.description);
       setLoading(false);
     }).catch(err => {
       addToast('Failed to load issue: ' + err.message, 'error');
       setLoading(false);
     });
-
-    fetchTransitions(issueKey).then(setTransitions).catch(() => {});
   }, [issueKey]);
 
-  async function handleSave() {
-    setSaving(true);
-    try {
-      await updateIssue(issueKey, { summary, description });
-      addToast('Issue updated', 'success');
-    } catch (err) {
-      addToast('Save failed: ' + err.message, 'error');
-    }
-    setSaving(false);
-  }
-
-  async function handleTransition(transitionId) {
-    try {
-      await updateIssue(issueKey, { transitionId });
-      addToast('Status updated', 'success');
-      const updated = await fetchIssue(issueKey);
-      setIssue(updated);
-      const newTransitions = await fetchTransitions(issueKey);
-      setTransitions(newTransitions);
-    } catch (err) {
-      addToast('Transition failed: ' + err.message, 'error');
-    }
-  }
-
-  async function handleAddComment() {
+  const handleAddComment = useCallback(async () => {
     if (!commentText.trim()) return;
     try {
       await addComment(issueKey, commentText);
@@ -67,9 +34,9 @@ export default function DetailDrawer({ issueKey, onClose }) {
     } catch (err) {
       addToast('Comment failed: ' + err.message, 'error');
     }
-  }
+  }, [commentText, issueKey, addToast]);
 
-  async function handleFileUpload(e) {
+  const handleFileUpload = useCallback(async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     try {
@@ -78,12 +45,27 @@ export default function DetailDrawer({ issueKey, onClose }) {
     } catch (err) {
       addToast('Upload failed: ' + err.message, 'error');
     }
-  }
+  }, [issueKey, addToast]);
+
+  const onOverlayClick = useCallback((e) => {
+    if (e.target === e.currentTarget) onClose();
+  }, [onClose]);
+
+  const commentsList = useMemo(() => {
+    if (!issue || !issue.comments) return null;
+    return issue.comments.map(c => (
+      <div key={c.id} className="drawer-comment">
+        <span className="comment-author">{c.author}</span>
+        <span className="comment-date">{new Date(c.created).toLocaleString()}</span>
+        <div className="comment-body" dangerouslySetInnerHTML={{ __html: adfToHtml(c.body) }} />
+      </div>
+    ));
+  }, [issue]);
 
   if (!issueKey) return null;
 
   return (
-    <div className="drawer-overlay" onClick={onClose}>
+    <div className="drawer-overlay" onClick={onOverlayClick}>
       <div className="drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-header">
           <h2>{issueKey}</h2>
@@ -99,43 +81,17 @@ export default function DetailDrawer({ issueKey, onClose }) {
           <div className="drawer-body">
             <div className="drawer-field">
               <label>Status</label>
-              <div className="drawer-status-row">
-                <StatusBadge status={issue.status} />
-                {transitions.length > 0 && (
-                  <select
-                    className="drawer-transition-select"
-                    onChange={e => e.target.value && handleTransition(e.target.value)}
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Transition...</option>
-                    {transitions.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
+              <StatusBadge status={issue.status} />
             </div>
 
             <div className="drawer-field">
               <label>Summary</label>
-              <input value={summary} onChange={e => setSummary(e.target.value)} />
+              <div className="drawer-field-value">{issue.summary || '-'}</div>
             </div>
 
             <div className="drawer-field">
-              <label>Description
-                <button className="drawer-edit-toggle" onClick={() => setEditingDesc(!editingDesc)}>
-                  {editingDesc ? 'View' : 'Edit'}
-                </button>
-              </label>
-              {editingDesc ? (
-                <textarea
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  rows={12}
-                />
-              ) : (
-                <div className="drawer-desc-rendered" dangerouslySetInnerHTML={{ __html: adfToHtml(description) || '<em>No description</em>' }} />
-              )}
+              <label>Description</label>
+              <div className="drawer-desc-rendered" dangerouslySetInnerHTML={{ __html: adfToHtml(issue.description) || '<em>No description</em>' }} />
             </div>
 
             <div className="drawer-meta">
@@ -150,24 +106,10 @@ export default function DetailDrawer({ issueKey, onClose }) {
               <div><strong>Due date:</strong> {issue.due_date || '-'}</div>
             </div>
 
-            <button
-              className="drawer-save-btn"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-
             <div className="drawer-section">
               <h3>Comments</h3>
               <div className="drawer-comments">
-                {(issue.comments || []).map(c => (
-                  <div key={c.id} className="drawer-comment">
-                    <span className="comment-author">{c.author}</span>
-                    <span className="comment-date">{new Date(c.created).toLocaleString()}</span>
-                    <div className="comment-body" dangerouslySetInnerHTML={{ __html: adfToHtml(c.body) }} />
-                  </div>
-                ))}
+                {commentsList || <div className="drawer-comment" style={{color:'#6B778C',fontStyle:'italic'}}>No comments yet</div>}
               </div>
               <div className="drawer-comment-form">
                 <textarea

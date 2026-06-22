@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { searchIssuesAll, getConfig } from '../jira-client';
+import { getStatusColor, STATUS_ORDER } from './StatusBadge';
 import './Timeline.css';
 
 const COMPONENT_COLORS = [
@@ -266,6 +267,89 @@ function GroupOverlay({ taskGroups }) {
   );
 }
 
+// ---- Date range slider (Excel pivot-table timeline style) ----
+
+function DateRangeSlider({ minDate, maxDate, dateFrom, dateTo, onFromChange, onToChange }) {
+  const barRef = useRef(null);
+
+  const hasRange = minDate && maxDate;
+  const totalDays = hasRange
+    ? (new Date(maxDate + 'T00:00:00') - new Date(minDate + 'T00:00:00')) / (1000 * 60 * 60 * 24)
+    : 1;
+
+  const fromPct = dateFrom
+    ? ((new Date(dateFrom + 'T00:00:00') - new Date(minDate + 'T00:00:00')) / (1000 * 60 * 60 * 24)) / totalDays * 100
+    : 0;
+  const toPct = dateTo
+    ? ((new Date(dateTo + 'T00:00:00') - new Date(minDate + 'T00:00:00')) / (1000 * 60 * 60 * 24)) / totalDays * 100
+    : 100;
+
+  const xToDate = useCallback((clientX) => {
+    if (!barRef.current || !hasRange) return minDate;
+    const rect = barRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const days = Math.round(pct * totalDays);
+    const d = new Date(minDate + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  }, [minDate, totalDays, hasRange]);
+
+  const handleMouseDown = useCallback((e, handle) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const move = (ev) => {
+      const date = xToDate(ev.clientX);
+      if (handle === 'from') onFromChange(date);
+      else onToChange(date);
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  }, [xToDate, onFromChange, onToChange]);
+
+  const handleBarClick = useCallback((e) => {
+    // Click on the bar outside handles — don't clear, just ignore
+    // Only respond to handle drags
+  }, []);
+
+  const formatLabel = (d) => {
+    if (!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleString('default', { month: 'short', year: 'numeric' });
+  };
+
+  if (!hasRange) return null;
+
+  return (
+    <div className="date-slider">
+      <div className="date-slider-bar" ref={barRef} onClick={handleBarClick}>
+        <div className="date-slider-bg" />
+        <div
+          className="date-slider-fill"
+          style={{ left: `${fromPct}%`, width: `${toPct - fromPct}%` }}
+        />
+        <div
+          className="date-slider-handle date-slider-handle-left"
+          style={{ left: `${fromPct}%` }}
+          onMouseDown={(e) => handleMouseDown(e, 'from')}
+        />
+        <div
+          className="date-slider-handle date-slider-handle-right"
+          style={{ left: `${toPct}%` }}
+          onMouseDown={(e) => handleMouseDown(e, 'to')}
+        />
+      </div>
+      <div className="date-slider-labels">
+        <span className="date-slider-label">{dateFrom ? formatLabel(dateFrom) : 'Start'}</span>
+        <span className="date-slider-label">{dateTo ? formatLabel(dateTo) : 'End'}</span>
+      </div>
+    </div>
+  );
+}
+
 // ---- Main Timeline component ----
 
 export default function Timeline({ onSelectIssue }) {
@@ -275,6 +359,16 @@ export default function Timeline({ onSelectIssue }) {
   const [selectedComponents, setSelectedComponents] = useState({});
   const [expandedComponents, setExpandedComponents] = useState({});
   const [hideDone, setHideDone] = useState(false);
+  const [search, setSearch] = useState('');
+  const [componentOrder, setComponentOrder] = useState([]);
+  const [dragComp, setDragComp] = useState(null);
+  const [dragOverComp, setDragOverComp] = useState(null);
+  const [statusFilter, setStatusFilter] = useState({});
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [hiddenComponents, setHiddenComponents] = useState({});
+  const dragCompRef = useRef(null);
+  const savedExpandRef = useRef(null);
   const hscrollRef = useRef(null);
   const bodyRef = useRef(null);
   const overlayRef = useRef(null);
@@ -303,10 +397,136 @@ export default function Timeline({ onSelectIssue }) {
     return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
   }, [issues]);
 
-  const activeNames = useMemo(
-    () => Object.entries(selectedComponents).filter(([, v]) => v).map(([k]) => k),
-    [selectedComponents]
+  const sortedComponents = useMemo(() => {
+    if (componentOrder.length === 0) return allComponents;
+    const orderMap = {};
+    componentOrder.forEach((name, i) => { orderMap[name] = i; });
+    return [...allComponents].sort((a, b) => {
+      const ai = orderMap[a.name] ?? 999;
+      const bi = orderMap[b.name] ?? 999;
+      return ai - bi;
+    });
+  }, [allComponents, componentOrder]);
+
+  // Available statuses from all issues
+  const availableStatuses = useMemo(() => {
+    const seen = new Set();
+    const statuses = [];
+    for (const issue of issues) {
+      const s = issue.status;
+      if (s && !seen.has(s.toLowerCase())) {
+        seen.add(s.toLowerCase());
+        // Normalize to the canonical form from STATUS_ORDER
+        const canonical = STATUS_ORDER.find(so => so.toLowerCase() === s.toLowerCase()) || s;
+        statuses.push(canonical);
+      }
+    }
+    return statuses.sort((a, b) => {
+      const ai = STATUS_ORDER.findIndex(so => so.toLowerCase() === a.toLowerCase());
+      const bi = STATUS_ORDER.findIndex(so => so.toLowerCase() === b.toLowerCase());
+      if (ai >= 0 && bi >= 0) return ai - bi;
+      if (ai >= 0) return -1;
+      if (bi >= 0) return 1;
+      return a.localeCompare(b);
+    });
+  }, [issues]);
+
+  const activeStatusNames = useMemo(
+    () => Object.entries(statusFilter).filter(([, v]) => v).map(([k]) => k.toLowerCase()),
+    [statusFilter]
   );
+
+  // Full date range across ALL issues (for the timeline slider bounds)
+  const allIssuesDateRange = useMemo(() => {
+    let min = null, max = null;
+    for (const issue of issues) {
+      const sd = issue.start_date ? issue.start_date.split('T')[0] : null;
+      const ed = issue.due_date ? issue.due_date.split('T')[0] : null;
+      const d = sd || ed;
+      if (d) {
+        if (!min || d < min) min = d;
+        if (!max || d > max) max = d;
+      }
+    }
+    return { min: min || '', max: max || '' };
+  }, [issues]);
+
+  // Helper: does an issue match all active filters?
+  const issueMatchesFilters = useCallback((issue) => {
+    if (hideDone && issue.status_category === 'Done') return false;
+    if (activeStatusNames.length > 0 && !activeStatusNames.includes((issue.status || '').toLowerCase())) return false;
+    const issueStart = issue.start_date ? issue.start_date.split('T')[0] : null;
+    const issueEnd = issue.due_date ? issue.due_date.split('T')[0] : null;
+    if (dateFrom) {
+      const effEnd = issueEnd || issueStart;
+      if (!effEnd || effEnd < dateFrom) return false;
+    }
+    if (dateTo) {
+      const effStart = issueStart || issueEnd;
+      if (!effStart || effStart > dateTo) return false;
+    }
+    return true;
+  }, [hideDone, activeStatusNames, dateFrom, dateTo]);
+
+  const filteredComponents = useMemo(() => {
+    let components = search.trim() ? (() => {
+      const q = search.toLowerCase();
+      return sortedComponents.filter(c => {
+        if (c.name.toLowerCase().includes(q)) return true;
+        return c.issues.some(i =>
+          i.key.toLowerCase().includes(q) ||
+          (i.summary || '').toLowerCase().includes(q)
+        );
+      });
+    })() : sortedComponents;
+
+    // Filter by status/date/done — only keep components with matching issues
+    if (activeStatusNames.length > 0 || dateFrom || dateTo || hideDone) {
+      components = components.map(c => {
+        const matchingIssues = c.issues.filter(issueMatchesFilters);
+        if (matchingIssues.length === 0) return null;
+        return { ...c, issues: matchingIssues, count: matchingIssues.length };
+      }).filter(Boolean);
+    }
+
+    return components;
+  }, [sortedComponents, search, activeStatusNames, dateFrom, dateTo, hideDone, issueMatchesFilters]);
+
+  // Auto-expand matching components when searching
+  useEffect(() => {
+    if (!search.trim()) {
+      if (savedExpandRef.current) {
+        setExpandedComponents(savedExpandRef.current);
+        savedExpandRef.current = null;
+      }
+      return;
+    }
+    if (!savedExpandRef.current) {
+      savedExpandRef.current = { ...expandedComponents };
+    }
+    const q = search.toLowerCase();
+    const toExpand = {};
+    sortedComponents.forEach(c => {
+      if (
+        c.name.toLowerCase().includes(q) ||
+        c.issues.some(i => i.key.toLowerCase().includes(q) || (i.summary || '').toLowerCase().includes(q))
+      ) {
+        toExpand[c.name] = true;
+      }
+    });
+    setExpandedComponents(prev => ({ ...prev, ...toExpand }));
+  }, [search]);
+
+  const activeNames = useMemo(() => {
+    const names = Object.entries(selectedComponents)
+      .filter(([, v]) => v)
+      .filter(([k]) => !hiddenComponents[k])
+      .map(([k]) => k);
+    if (componentOrder.length === 0) return names;
+    const orderMap = {};
+    componentOrder.forEach((name, i) => { orderMap[name] = i; });
+    return names.sort((a, b) => (orderMap[a] ?? 999) - (orderMap[b] ?? 999));
+  }, [selectedComponents, componentOrder, hiddenComponents]);
 
   const activeCount = activeNames.length;
   const expandedCount = Object.values(expandedComponents).filter(Boolean).length;
@@ -342,7 +562,7 @@ export default function Timeline({ onSelectIssue }) {
     if (activeNames.length === 0) return {};
     const colors = {};
     const filtered = issues.filter(i => {
-      if (hideDone && i.status_category === 'Done') return false;
+      if (!issueMatchesFilters(i)) return false;
       return i.components && i.components.some(c => selectedComponents[c.name]);
     });
     const byComp = {};
@@ -366,7 +586,7 @@ export default function Timeline({ onSelectIssue }) {
       }
     }
     return colors;
-  }, [activeNames, issues, selectedComponents, allComponents, hideDone]);
+  }, [activeNames, issues, selectedComponents, allComponents, issueMatchesFilters]);
 
   // Build task groups for the Gantt (grouped by component when multiple selected)
   const taskGroups = useMemo(() => {
@@ -374,7 +594,7 @@ export default function Timeline({ onSelectIssue }) {
     const groups = [];
     for (const compName of activeNames) {
       const filtered = issues.filter(i => {
-        if (hideDone && i.status_category === 'Done') return false;
+        if (!issueMatchesFilters(i)) return false;
         return i.components && i.components.some(c => c.name === compName);
       });
       if (filtered.length === 0) continue;
@@ -401,7 +621,7 @@ export default function Timeline({ onSelectIssue }) {
       }
     }
     return groups;
-  }, [issues, selectedComponents, hideDone, activeNames, allComponents]);
+  }, [issues, selectedComponents, activeNames, allComponents, issueMatchesFilters]);
 
   const totalTaskCount = useMemo(
     () => taskGroups.reduce((s, g) => s + g.tasks.length, 0),
@@ -484,14 +704,136 @@ export default function Timeline({ onSelectIssue }) {
     });
   }, [taskGroups, todayX]);
 
-  if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
-  if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
+  const handleDragStart = useCallback((e, compName) => {
+    dragCompRef.current = compName;
+    setDragComp(compName);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', compName);
+  }, []);
 
-  const compIssuesFor = (c) => (c.issues || []).sort((a, b) => {
+  const handleDragOver = useCallback((e, compName) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverComp(prev => prev === compName ? prev : compName);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverComp(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e, targetName) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverComp(null);
+    setDragComp(null);
+    const sourceComp = dragCompRef.current;
+    dragCompRef.current = null;
+    if (!sourceComp || sourceComp === targetName) return;
+    const allNames = allComponents.map(c => c.name);
+    const baseOrder = componentOrder.length > 0 ? componentOrder : allNames;
+    const newOrder = baseOrder.filter(n => allNames.includes(n));
+    for (const n of allNames) {
+      if (!newOrder.includes(n)) newOrder.push(n);
+    }
+    const fromIdx = newOrder.indexOf(sourceComp);
+    const toIdx = newOrder.indexOf(targetName);
+    if (fromIdx === -1 || toIdx === -1) return;
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, sourceComp);
+    setComponentOrder(newOrder);
+  }, [allComponents, componentOrder]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragOverComp(null);
+    setDragComp(null);
+    dragCompRef.current = null;
+  }, []);
+
+  const resetOrder = useCallback(() => {
+    setComponentOrder([]);
+  }, []);
+
+  const toggleHideComponent = useCallback((name) => {
+    setHiddenComponents(prev => {
+      const next = { ...prev, [name]: !prev[name] };
+      if (next[name]) {
+        // Also uncheck from selected when hiding
+        setSelectedComponents(sc => ({ ...sc, [name]: false }));
+      }
+      return next;
+    });
+  }, []);
+
+  const unhideAll = useCallback(() => {
+    setHiddenComponents({});
+  }, []);
+
+  const resetAll = useCallback(() => {
+    setSearch('');
+    setStatusFilter({});
+    setDateFrom('');
+    setDateTo('');
+    setHiddenComponents({});
+    setHideDone(false);
+    setComponentOrder([]);
+  }, []);
+
+  const hiddenCount = Object.values(hiddenComponents).filter(Boolean).length;
+
+  const exportGanttPNG = useCallback(() => {
+    const svgEl = document.querySelector('.timeline-gantt-body svg');
+    if (!svgEl) return;
+    const clone = svgEl.cloneNode(true);
+    const w = svgEl.getAttribute('width');
+    const h = svgEl.getAttribute('height');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(clone);
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = parseInt(w) || 1200;
+      canvas.height = parseInt(h) || 600;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(b => {
+        if (!b) return;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = 'gantt-chart.png';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png');
+    };
+    img.src = url;
+  }, []);
+
+  const compIssuesFor = useCallback((c) => (c.issues || []).sort((a, b) => {
     const sa = a.start_date || a.due_date || '';
     const sb = b.start_date || b.due_date || '';
     return sa.localeCompare(sb);
-  });
+  }), []);
+
+  // Sort: visible components first, hidden at bottom
+  const displayComponents = useMemo(() => {
+    const visible = [];
+    const hidden = [];
+    for (const c of filteredComponents) {
+      if (hiddenComponents[c.name]) hidden.push(c);
+      else visible.push(c);
+    }
+    return [...visible, ...hidden];
+  }, [filteredComponents, hiddenComponents]);
+
+  if (loading) return <div className="timeline-empty">Loading DEV1 issues...</div>;
+  if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
 
   return (
     <div className="timeline-layout">
@@ -499,7 +841,14 @@ export default function Timeline({ onSelectIssue }) {
         <div className="filter-section">
           <div className="filter-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Components</span>
-            <div style={{ display: 'flex', gap: 2 }}>
+            <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              {hiddenCount > 0 && (
+                <button
+                  onClick={unhideAll}
+                  style={{ background: 'none', border: 'none', fontSize: 10, color: '#6B778C', cursor: 'pointer', padding: '2px 4px' }}
+                  title="Show all hidden components"
+                >Show all</button>
+              )}
               <button
                 onClick={toggleExpandAll}
                 style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
@@ -508,27 +857,119 @@ export default function Timeline({ onSelectIssue }) {
                 onClick={toggleAll}
                 style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
               >{activeCount === allComponents.length ? 'Deselect all' : 'Select all'}</button>
+              <button
+                onClick={resetAll}
+                style={{ background: 'none', border: 'none', fontSize: 10, color: '#6B778C', cursor: 'pointer', padding: '2px 4px' }}
+                title="Reset all filters"
+              >Reset</button>
             </div>
           </div>
+          <div className="timeline-search-wrap">
+            <input
+              type="text"
+              className="timeline-search-input"
+              placeholder="Filter components..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="timeline-search-clear" onClick={() => setSearch('')}>&times;</button>
+            )}
+          </div>
+
+          {/* Status filter pills */}
+          {availableStatuses.length > 0 && (
+            <div className="timeline-filter-row">
+              <div className="timeline-filter-label">Status</div>
+              <div className="timeline-status-chips">
+                {availableStatuses.map(s => {
+                  const active = statusFilter[s] || false;
+                  const sc = getStatusColor(s);
+                  return (
+                    <button
+                      key={s}
+                      className={`timeline-status-chip${active ? ' active' : ''}`}
+                      style={active ? { backgroundColor: sc.bg, borderColor: sc.border, color: sc.text } : {}}
+                      onClick={() => setStatusFilter(prev => ({ ...prev, [s]: !prev[s] }))}
+                    >{s}</button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Date range — Excel pivot-table timeline style */}
+          <div className="timeline-filter-row">
+            <div className="timeline-filter-label">
+              Date
+              {(dateFrom || dateTo) && (
+                <button
+                  className="timeline-date-clear"
+                  onClick={() => { setDateFrom(''); setDateTo(''); }}
+                  title="Clear date filter"
+                >&times;</button>
+              )}
+            </div>
+            <DateRangeSlider
+              minDate={allIssuesDateRange.min}
+              maxDate={allIssuesDateRange.max}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onFromChange={setDateFrom}
+              onToChange={setDateTo}
+            />
+          </div>
+
           <div className="component-list">
-            {allComponents.map((c, i) => {
+            {displayComponents.map((c, i) => {
               const baseColor = COMPONENT_COLORS[i % COMPONENT_COLORS.length];
               const checked = selectedComponents[c.name] || false;
               const expanded = expandedComponents[c.name] || false;
               const sortedIssues = compIssuesFor(c);
+              const isDragOver = dragOverComp === c.name;
+              const isSearching = !!search.trim();
+              const filteredCount = c.count;
+              const totalCount = allComponents.find(ac => ac.name === c.name)?.count || c.count;
+              const isHidden = hiddenComponents[c.name] || false;
               return (
-                <div key={c.name} className="comp-group">
-                  <div className="comp-row">
+                <div key={c.name}
+                  className={`comp-group${isDragOver ? ' comp-group-drop-target' : ''}${isHidden ? ' comp-group-hidden' : ''}`}
+                  onDragOver={(e) => handleDragOver(e, c.name)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, c.name)}
+                >
+                  <div className={`comp-row${dragComp === c.name ? ' comp-row-dragging' : ''}`}>
+                    <span
+                      className={`comp-drag-handle${isSearching || isHidden ? ' comp-drag-handle-disabled' : ''}`}
+                      draggable={!isSearching && !isHidden}
+                      onDragStart={(e) => handleDragStart(e, c.name)}
+                      onDragEnd={handleDragEnd}
+                      title={isHidden ? 'Unhide to reorder' : isSearching ? 'Clear search to reorder' : 'Drag to reorder'}
+                    >⋮⋮</span>
                     <span className="comp-arrow" onClick={(e) => { e.stopPropagation(); toggleExpand(c.name); }}>
                       {expanded ? '▼' : '▶'}
                     </span>
                     <label className="comp-label">
                       <input type="checkbox" checked={checked}
+                        disabled={isHidden}
                         onChange={e => setSelectedComponents({ ...selectedComponents, [c.name]: e.target.checked })} />
-                      <span className="comp-color-dot" style={{ backgroundColor: baseColor }} />
-                      <span className="comp-name">{c.name}</span>
-                      <span className="component-count">{c.count}</span>
+                      <span className="comp-color-dot" style={{ backgroundColor: isHidden ? '#C1C7D0' : baseColor }} />
+                      <span className={`comp-name${isHidden ? ' comp-name-hidden' : ''}`}>{c.name}</span>
+                      <span className="component-count">
+                        {filteredCount !== totalCount ? `${filteredCount}/${totalCount}` : totalCount}
+                      </span>
                     </label>
+                    <button
+                      className={`comp-hide-btn${isHidden ? ' comp-hide-btn-hidden' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); toggleHideComponent(c.name); }}
+                      title={isHidden ? 'Show component' : 'Hide component'}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                        {isHidden && <line x1="2" y1="2" x2="22" y2="22" />}
+                      </svg>
+                    </button>
                   </div>
                   {expanded && (
                     <div className="comp-issues">
@@ -548,7 +989,7 @@ export default function Timeline({ onSelectIssue }) {
                 </div>
               );
             })}
-            {allComponents.length === 0 && <div style={{ padding: 8, fontSize: 11, color: '#6B778C' }}>No components found</div>}
+            {displayComponents.length === 0 && <div style={{ padding: 8, fontSize: 11, color: '#6B778C' }}>No components found</div>}
           </div>
         </div>
         <div className="filter-section">
@@ -565,6 +1006,9 @@ export default function Timeline({ onSelectIssue }) {
           <>
             <div className="timeline-header">
               <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
+              <button className="timeline-export-btn" onClick={exportGanttPNG} title="Export Gantt chart as PNG">
+                Export PNG
+              </button>
             </div>
             <div className="timeline-gantt-wrap">
               <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

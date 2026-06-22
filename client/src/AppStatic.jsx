@@ -5,7 +5,7 @@ import DetailDrawer from './components/DetailDrawer';
 import CreateIssueModal from './components/CreateIssueModal';
 import Timeline from './components/Timeline';
 import StatusBadge, { getStatusColor, STATUS_ORDER } from './components/StatusBadge';
-import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getTransitions, doTransition, getIssue, updateIssue, createIssue as jiraCreateIssue } from './jira-client';
+import { searchIssuesAll, getCurrentUser, getCustomFields, addComment, getComments, getIssue, createIssue as jiraCreateIssue } from './jira-client';
 import { getConfig } from './jira-client';
 import { adfToHtml } from './adf';
 import './App.css';
@@ -216,16 +216,12 @@ function ToastContainer({ toasts }) {
 function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState('');
-  const [transitions, setTransitions] = useState([]);
-  const [savingSummary, setSavingSummary] = useState(false);
 
   useEffect(() => {
-    if (!issueKey) return;
+    if (!issueKey) { setIssue(null); return; }
     setLoading(true);
     getIssue(issueKey).then(data => {
       const parsed = parseIssue(data);
-      // Fetch comments with ADF-to-HTML conversion
       parsed.comments = (data.fields.comment && data.fields.comment.comments || []).map(c => ({
         id: c.id,
         author: c.author ? c.author.displayName : '',
@@ -241,20 +237,76 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
         parsed.description = data.fields.renderedFields.description;
       }
       setIssue(parsed);
-      setSummary(parsed.summary);
       setLoading(false);
     }).catch(err => {
       addToast('Failed: ' + err.message, 'error');
       setLoading(false);
     });
-
-    getTransitions(issueKey).then(setTransitions).catch(() => {});
   }, [issueKey]);
+
+  const hierarchySection = useMemo(() => {
+    if (!issue) return null;
+    const parentChain = [];
+    let current = issue;
+    while (current && (current.parent_key || current.epic_key)) {
+      const parentKey = current.parent_key || current.epic_key;
+      const parent = issues.find(i => i.key === parentKey);
+      if (!parent || parent.key === current.key) break;
+      parentChain.push(parent);
+      current = parent;
+    }
+    const children = issues.filter(i => i.parent_key === issue.key || i.epic_key === issue.key);
+    if (parentChain.length === 0 && children.length === 0) return null;
+    return (
+      <details className="drawer-section drawer-hierarchy">
+        <summary>Hierarchy ({parentChain.length + children.length})</summary>
+        {parentChain.length > 0 && (
+          <div className="hierarchy-group">
+            <div className="hierarchy-label">Parents</div>
+            {parentChain.map(p => (
+              <div key={p.key} className="hierarchy-item parent">
+                <span className="hierarchy-key">{p.key}</span>
+                <span className="hierarchy-summary">{p.summary}</span>
+                <StatusBadge status={p.status} />
+              </div>
+            ))}
+          </div>
+        )}
+        {children.length > 0 && (
+          <div className="hierarchy-group">
+            <div className="hierarchy-label">Children ({children.length})</div>
+            {children.map(c => (
+              <div key={c.key} className="hierarchy-item child">
+                <span className="hierarchy-key">{c.key}</span>
+                <span className="hierarchy-summary">{c.summary}</span>
+                <StatusBadge status={c.status} />
+              </div>
+            ))}
+          </div>
+        )}
+      </details>
+    );
+  }, [issue, issues]);
+
+  const commentsSection = useMemo(() => {
+    if (!issue || !issue.comments) return null;
+    return issue.comments.map(c => (
+      <div key={c.id} className="drawer-comment">
+        <span className="comment-author">{c.author}</span>
+        <span className="comment-date">{new Date(c.created).toLocaleString()}</span>
+        <div className="comment-body" dangerouslySetInnerHTML={{ __html: c.body || '<em>No content</em>' }} />
+      </div>
+    ));
+  }, [issue]);
+
+  const onOverlayClick = useCallback((e) => {
+    if (e.target === e.currentTarget) onClose();
+  }, [onClose]);
 
   if (!issueKey) return null;
 
   return (
-    <div className="drawer-overlay" onClick={onClose}>
+    <div className="drawer-overlay" onClick={onOverlayClick}>
       <div className="drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-header">
           <h2>{issueKey}</h2>
@@ -267,29 +319,11 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
           <div className="drawer-body">
             <div className="drawer-field">
               <label>Status</label>
-              <div className="drawer-status-row">
-                <StatusBadge status={issue.status} />
-                {transitions.length > 0 && (
-                  <select className="drawer-transition-select" onChange={async e => {
-                    if (!e.target.value) return;
-                    try { await doTransition(issueKey, e.target.value); addToast('Status updated', 'success'); } catch (err) { addToast('Failed: ' + err.message, 'error'); }
-                  }} defaultValue="">
-                    <option value="" disabled>Transition...</option>
-                    {transitions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                )}
-              </div>
+              <StatusBadge status={issue.status} />
             </div>
             <div className="drawer-field">
               <label>Summary</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input value={summary} onChange={e => setSummary(e.target.value)} style={{ flex: 1 }} />
-                <button className="drawer-save-btn" style={{ width: 'auto', padding: '6px 12px', margin: 0 }} disabled={savingSummary} onClick={async () => {
-                  setSavingSummary(true);
-                  try { await updateIssue(issueKey, { summary }); addToast('Saved', 'success'); } catch (err) { addToast('Failed: ' + err.message, 'error'); }
-                  setSavingSummary(false);
-                }}>{savingSummary ? '...' : 'Save'}</button>
-              </div>
+              <div className="drawer-field-value">{issue.summary || '-'}</div>
             </div>
             <div className="drawer-field">
               <label>Description</label>
@@ -306,60 +340,11 @@ function DetailDrawerStatic({ issueKey, issues, onClose, addToast }) {
               <div><strong>Priority:</strong> {issue.priority || '-'}</div>
               <div><strong>Due date:</strong> {issue.due_date || '-'}</div>
             </div>
-            {(() => {
-              const parentChain = [];
-              let current = issue;
-              while (current && (current.parent_key || current.epic_key)) {
-                const parentKey = current.parent_key || current.epic_key;
-                const parent = issues.find(i => i.key === parentKey);
-                if (!parent || parent.key === current.key) break;
-                parentChain.push(parent);
-                current = parent;
-              }
-              const children = issues.filter(i => i.parent_key === issue.key || i.epic_key === issue.key);
-              if (parentChain.length === 0 && children.length === 0) return null;
-              return (
-                <details className="drawer-section drawer-hierarchy">
-                  <summary>Hierarchy ({parentChain.length + children.length})</summary>
-                  {parentChain.length > 0 && (
-                    <div className="hierarchy-group">
-                      <div className="hierarchy-label">Parents</div>
-                      {parentChain.map(p => (
-                        <div key={p.key} className="hierarchy-item parent" onClick={() => { }} style={{ cursor: 'pointer' }}>
-                          <span className="hierarchy-key">{p.key}</span>
-                          <span className="hierarchy-summary">{p.summary}</span>
-                          <StatusBadge status={p.status} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {children.length > 0 && (
-                    <div className="hierarchy-group">
-                      <div className="hierarchy-label">Children ({children.length})</div>
-                      {children.map(c => (
-                        <div key={c.key} className="hierarchy-item child">
-                          <span className="hierarchy-key">{c.key}</span>
-                          <span className="hierarchy-summary">{c.summary}</span>
-                          <StatusBadge status={c.status} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </details>
-              );
-            })()}
-
+            {hierarchySection}
             <div className="drawer-section">
               <h3>Comments</h3>
               <div className="drawer-comments">
-                {(issue.comments || []).map(c => (
-                  <div key={c.id} className="drawer-comment">
-                    <span className="comment-author">{c.author}</span>
-                    <span className="comment-date">{new Date(c.created).toLocaleString()}</span>
-                    <div className="comment-body" dangerouslySetInnerHTML={{ __html: c.body || '<em>No content</em>' }} />
-                  </div>
-                ))}
-                {(issue.comments || []).length === 0 && <div className="drawer-loading" style={{ padding: 10, fontSize: 12 }}>No comments yet.</div>}
+                {commentsSection && commentsSection.length > 0 ? commentsSection : <div className="drawer-loading" style={{ padding: 10, fontSize: 12 }}>No comments yet.</div>}
               </div>
             </div>
           </div>
