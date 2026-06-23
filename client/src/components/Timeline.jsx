@@ -1001,7 +1001,7 @@ export default function Timeline({ onSelectIssue }) {
     };
     const json = JSON.stringify(share);
     const encoded = btoa(unescape(encodeURIComponent(json)));
-    const url = window.location.origin + window.location.pathname + '#view=' + encoded;
+    const url = window.location.origin + window.location.pathname + '#timeline&view=' + encoded;
     navigator.clipboard.writeText(url).then(() => {
       setSaveToast('Share link copied!');
       setTimeout(() => setSaveToast(''), 2000);
@@ -1015,9 +1015,10 @@ export default function Timeline({ onSelectIssue }) {
   useEffect(() => {
     if (issues.length === 0) return;
     const hash = window.location.hash;
-    if (!hash.startsWith('#view=')) return;
+    const match = hash.match(/view=([^&]+)/);
+    if (!match) return;
     try {
-      const encoded = hash.slice(6);
+      const encoded = match[1];
       const json = decodeURIComponent(escape(atob(encoded)));
       const view = JSON.parse(json);
       const avail = new Set(allComponents.map(c => c.name));

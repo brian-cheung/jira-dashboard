@@ -372,7 +372,10 @@ export default function AppStatic() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState({});
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState('tickets');
+  const [tab, setTab] = useState(() => {
+    if (window.location.hash.startsWith('#timeline')) return 'timeline';
+    return 'tickets';
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
