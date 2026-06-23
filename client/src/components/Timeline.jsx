@@ -352,7 +352,9 @@ function DateRangeSlider({ minDate, maxDate, dateFrom, dateTo, onFromChange, onT
 
 // ---- Views save/load modal ----
 
-function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onUpdate, onLoad, onDelete, onClose }) {
+const CHIP_COLORS = ['#0052CC', '#E67E22', '#8E44AD', '#2ECC71', '#E74C3C', '#1ABC9C', '#F39C12', '#E91E63'];
+
+function ViewsModal({ savedViews, newViewName, viewColor, onNameChange, onColorChange, onSave, onUpdate, onLoad, onDelete, onClose }) {
   const names = Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt);
   const existingName = newViewName.trim();
   const isUpdate = existingName && savedViews[existingName];
@@ -364,14 +366,26 @@ function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onUpdate, o
           <button className="views-modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="views-modal-save-row">
-          <input
-            type="text"
-            className="views-modal-input"
-            placeholder="View name..."
-            value={newViewName}
-            onChange={e => onNameChange(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') isUpdate ? onUpdate(existingName) : onSave(); }}
-          />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input
+              type="text"
+              className="views-modal-input"
+              placeholder="View name..."
+              value={newViewName}
+              onChange={e => onNameChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') isUpdate ? onUpdate(existingName) : onSave(); }}
+            />
+            <div className="views-modal-colors">
+              {CHIP_COLORS.map(c => (
+                <span
+                  key={c}
+                  className={`views-modal-color-dot${viewColor === c ? ' selected' : ''}`}
+                  style={{ backgroundColor: c }}
+                  onClick={() => onColorChange(c)}
+                />
+              ))}
+            </div>
+          </div>
           {isUpdate ? (
             <button className="views-modal-save-btn" onClick={() => onUpdate(existingName)}>Update</button>
           ) : (
@@ -387,7 +401,10 @@ function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onUpdate, o
               return (
                 <div key={name} className="views-modal-item">
                   <div className="views-modal-item-info" onClick={() => onLoad(name)} title="Click to load">
-                    <span className="views-modal-item-name">{name}</span>
+                    <span className="views-modal-item-name">
+                      {v.color && <span className="views-modal-item-dot" style={{ backgroundColor: v.color }} />}
+                      {name}
+                    </span>
                     <span className="views-modal-item-meta">{comps} component{comps !== 1 ? 's' : ''} &middot; {date}</span>
                   </div>
                   <button className="views-modal-item-update-btn" onClick={() => onUpdate(name)} title="Update with current view">&#8634;</button>
@@ -824,6 +841,7 @@ export default function Timeline({ onSelectIssue }) {
   });
   const [newViewName, setNewViewName] = useState('');
   const [activeViewName, setActiveViewName] = useState('');
+  const [viewColor, setViewColor] = useState(CHIP_COLORS[0]);
   const [saveToast, setSaveToast] = useState('');
 
   const currentViewState = useMemo(() => ({
@@ -843,14 +861,14 @@ export default function Timeline({ onSelectIssue }) {
 
   const saveViewAs = useCallback((name) => {
     if (!name.trim()) return;
-    const views = { ...savedViews, [name.trim()]: { ...currentViewState, savedAt: Date.now() } };
+    const views = { ...savedViews, [name.trim()]: { ...currentViewState, color: viewColor, savedAt: Date.now() } };
     persistViews(views);
     setActiveViewName(name.trim());
     setShowViewsModal(false);
     setNewViewName('');
     setSaveToast('View saved: ' + name.trim());
     setTimeout(() => setSaveToast(''), 2000);
-  }, [currentViewState, savedViews, persistViews]);
+  }, [currentViewState, savedViews, persistViews, viewColor]);
 
   const loadView = useCallback((name) => {
     const view = savedViews[name];
@@ -877,14 +895,15 @@ export default function Timeline({ onSelectIssue }) {
 
   const updateView = useCallback((name) => {
     if (!name.trim()) return;
-    const views = { ...savedViews, [name.trim()]: { ...currentViewState, savedAt: Date.now() } };
+    const existing = savedViews[name.trim()];
+    const views = { ...savedViews, [name.trim()]: { ...currentViewState, color: viewColor !== existing?.color ? viewColor : existing?.color || viewColor, savedAt: Date.now() } };
     persistViews(views);
     setActiveViewName(name.trim());
     setShowViewsModal(false);
     setNewViewName('');
     setSaveToast('View updated: ' + name.trim());
     setTimeout(() => setSaveToast(''), 2000);
-  }, [currentViewState, savedViews, persistViews]);
+  }, [currentViewState, savedViews, persistViews, viewColor]);
 
   const deleteView = useCallback((name) => {
     const views = { ...savedViews };
@@ -1362,7 +1381,6 @@ export default function Timeline({ onSelectIssue }) {
         ) : (
           <>
             <div className="timeline-header">
-              <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <button className="timeline-save-view-btn" onClick={() => {
                   if (activeViewName && savedViews[activeViewName]) {
@@ -1378,18 +1396,34 @@ export default function Timeline({ onSelectIssue }) {
                   Export PNG
                 </button>
               </div>
+              <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
             </div>
             {/* View chips for quick switching */}
             {Object.keys(savedViews).length > 0 && (
               <div className="timeline-view-chips">
-                {Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => (
-                  <button
-                    key={name}
-                    className={`timeline-view-chip${name === activeViewName ? ' active' : ''}`}
-                    onClick={() => loadView(name)}
-                    title={`Load view: ${name}`}
-                  >{name}</button>
-                ))}
+                {Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
+                  const v = savedViews[name];
+                  const isActive = name === activeViewName;
+                  return (
+                    <button
+                      key={name}
+                      className={`timeline-view-chip${isActive ? ' active' : ''}`}
+                      style={v.color ? { borderColor: v.color, background: isActive ? v.color + '18' : undefined } : {}}
+                      onClick={() => loadView(name)}
+                      title={`Load view: ${name}`}
+                    >
+                      {v.color && <span className="timeline-view-chip-dot" style={{ backgroundColor: v.color }} />}
+                      {name}
+                      {isActive && (
+                        <span className="timeline-view-chip-x" onClick={e => {
+                          e.stopPropagation();
+                          setActiveViewName('');
+                          resetAll();
+                        }} title="Close view">&times;</span>
+                      )}
+                    </button>
+                  );
+                })}
                 <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
               </div>
             )}
@@ -1436,7 +1470,9 @@ export default function Timeline({ onSelectIssue }) {
       <ViewsModal
         savedViews={savedViews}
         newViewName={newViewName}
+        viewColor={viewColor}
         onNameChange={setNewViewName}
+        onColorChange={setViewColor}
         onSave={() => saveViewAs(newViewName)}
         onUpdate={updateView}
         onLoad={loadView}
