@@ -845,6 +845,7 @@ export default function Timeline({ onSelectIssue }) {
     if (!name.trim()) return;
     const views = { ...savedViews, [name.trim()]: { ...currentViewState, savedAt: Date.now() } };
     persistViews(views);
+    setActiveViewName(name.trim());
     setShowViewsModal(false);
     setNewViewName('');
     setSaveToast('View saved: ' + name.trim());
@@ -878,6 +879,7 @@ export default function Timeline({ onSelectIssue }) {
     if (!name.trim()) return;
     const views = { ...savedViews, [name.trim()]: { ...currentViewState, savedAt: Date.now() } };
     persistViews(views);
+    setActiveViewName(name.trim());
     setShowViewsModal(false);
     setNewViewName('');
     setSaveToast('View updated: ' + name.trim());
@@ -1361,10 +1363,36 @@ export default function Timeline({ onSelectIssue }) {
           <>
             <div className="timeline-header">
               <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
-              <button className="timeline-export-btn" onClick={exportGanttPNG} title="Export Gantt chart as PNG">
-                Export PNG
-              </button>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button className="timeline-save-view-btn" onClick={() => {
+                  if (activeViewName && savedViews[activeViewName]) {
+                    updateView(activeViewName);
+                  } else {
+                    setShowViewsModal(true);
+                    setNewViewName(activeViewName || '');
+                  }
+                }} title={activeViewName && savedViews[activeViewName] ? 'Update current view' : 'Save current view'}>
+                  {activeViewName && savedViews[activeViewName] ? 'Update View' : 'Save View'}
+                </button>
+                <button className="timeline-export-btn" onClick={exportGanttPNG} title="Export Gantt chart as PNG">
+                  Export PNG
+                </button>
+              </div>
             </div>
+            {/* View chips for quick switching */}
+            {Object.keys(savedViews).length > 0 && (
+              <div className="timeline-view-chips">
+                {Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => (
+                  <button
+                    key={name}
+                    className={`timeline-view-chip${name === activeViewName ? ' active' : ''}`}
+                    onClick={() => loadView(name)}
+                    title={`Load view: ${name}`}
+                  >{name}</button>
+                ))}
+                <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
+              </div>
+            )}
             <div className="timeline-gantt-wrap">
               <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* Sticky group label overlay — sits on top of the scrollable area, doesn't scroll horizontally */}

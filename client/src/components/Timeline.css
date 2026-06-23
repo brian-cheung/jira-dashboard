@@ -44,6 +44,57 @@
   border-color: #0052CC;
   color: #0052CC;
 }
+.timeline-save-view-btn {
+  padding: 3px 10px;
+  font-size: 10px;
+  font-family: inherit;
+  background: #0052CC;
+  border: 1px solid #0052CC;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.timeline-save-view-btn:hover {
+  background: #0747A6;
+  border-color: #0747A6;
+}
+
+/* View chips */
+.timeline-view-chips {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.timeline-view-chip {
+  padding: 2px 10px;
+  font-size: 10px;
+  font-family: inherit;
+  background: #F4F5F7;
+  border: 1px solid #DFE1E6;
+  border-radius: 12px;
+  color: #42526E;
+  cursor: pointer;
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.timeline-view-chip:hover {
+  background: #EBECF0;
+  border-color: #0052CC;
+}
+.timeline-view-chip.active {
+  background: #DEEBFF;
+  border-color: #0052CC;
+  color: #0052CC;
+  font-weight: 600;
+}
+.timeline-view-chip-more {
+  padding: 2px 8px;
+  font-weight: 600;
+}
 .timeline-gantt-wrap {
   flex: 1;
   overflow: hidden;
