@@ -984,8 +984,22 @@ export default function Timeline({ onSelectIssue }) {
   const hiddenCount = Object.values(hiddenComponents).filter(Boolean).length;
 
   const shareView = useCallback(() => {
-    const state = { selectedComponents, statusFilter, dateFrom, dateTo, hideDone, componentOrder };
-    const json = JSON.stringify(state);
+    let state;
+    if (activeViewName && savedViews[activeViewName]) {
+      state = savedViews[activeViewName];
+    } else {
+      state = currentViewState;
+    }
+    // Only include shareable keys
+    const share = {
+      selectedComponents: state.selectedComponents,
+      statusFilter: state.statusFilter,
+      dateFrom: state.dateFrom,
+      dateTo: state.dateTo,
+      hideDone: state.hideDone,
+      componentOrder: state.componentOrder,
+    };
+    const json = JSON.stringify(share);
     const encoded = btoa(unescape(encodeURIComponent(json)));
     const url = window.location.origin + window.location.pathname + '#view=' + encoded;
     navigator.clipboard.writeText(url).then(() => {
@@ -995,7 +1009,7 @@ export default function Timeline({ onSelectIssue }) {
       setSaveToast('Failed to copy link');
       setTimeout(() => setSaveToast(''), 2000);
     });
-  }, [currentViewState]);
+  }, [currentViewState, activeViewName, savedViews]);
 
   // Restore view from URL hash on mount
   useEffect(() => {
