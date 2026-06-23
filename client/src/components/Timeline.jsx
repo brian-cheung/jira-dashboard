@@ -1395,76 +1395,75 @@ export default function Timeline({ onSelectIssue }) {
       </div>
       <div className="timeline-main">
         <div className="timeline-header">
-          <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {/* View chips inline */}
-                {Object.keys(savedViews).length > 0 && (
-                  <div className="timeline-view-chips">
-                    {Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
-                      const v = savedViews[name];
-                      const isActive = name === activeViewName;
-                      return (
-                        <button
-                          key={name}
-                          className={`timeline-view-chip${isActive ? ' active' : ''}`}
-                          style={v.color ? {
-                            borderColor: v.color,
-                            color: isActive ? v.color : undefined,
-                            background: isActive ? v.color + '18' : undefined,
-                          } : {}}
-                          onClick={() => loadView(name)}
-                          onContextMenu={e => {
-                            e.preventDefault();
-                            const menu = { name, x: e.clientX, y: e.clientY };
-                            setChipContextMenu(menu);
-                          }}
-                          onDoubleClick={e => {
-                            e.stopPropagation();
-                            setRenamingView(name);
-                            setRenameValue(name);
-                          }}
-                          title={`Load view: ${name} (right-click for color, double-click to rename)`}
-                        >
-                          {v.color && <span className="timeline-view-chip-dot" style={{ backgroundColor: v.color }} />}
-                          {renamingView === name ? (
-                            <input
-                              className="timeline-view-chip-input"
-                              value={renameValue}
-                              onChange={e => setRenameValue(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') renameView(); if (e.key === 'Escape') setRenamingView(null); }}
-                              onBlur={renameView}
-                              autoFocus
-                              onClick={e => e.stopPropagation()}
-                            />
-                          ) : name}
-                          {isActive && (
-                            <span className="timeline-view-chip-x" onClick={e => {
-                              e.stopPropagation();
-                              setActiveViewName('');
-                              resetAll();
-                            }} title="Close view">&times;</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                    <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
-                  </div>
-                )}
-                <button className="timeline-save-view-btn" onClick={() => {
-                  if (activeViewName && savedViews[activeViewName]) {
-                    updateView(activeViewName);
-                  } else {
-                    setShowViewsModal(true);
-                    setNewViewName(activeViewName || '');
-                  }
-                }} title={activeViewName && savedViews[activeViewName] ? 'Update current view' : 'Save current view'}>
-                  {activeViewName && savedViews[activeViewName] ? 'Update View' : 'Save View'}
+          <div className="timeline-view-chips">
+            {Object.keys(savedViews).length > 0 && Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
+              const v = savedViews[name];
+              const isActive = name === activeViewName;
+              return (
+                <button
+                  key={name}
+                  className={`timeline-view-chip${isActive ? ' active' : ''}`}
+                  style={v.color ? {
+                    borderColor: v.color,
+                    color: isActive ? v.color : undefined,
+                    background: isActive ? v.color + '18' : undefined,
+                  } : {}}
+                  onClick={() => loadView(name)}
+                  onContextMenu={e => {
+                    e.preventDefault();
+                    const menu = { name, x: e.clientX, y: e.clientY };
+                    setChipContextMenu(menu);
+                  }}
+                  onDoubleClick={e => {
+                    e.stopPropagation();
+                    setRenamingView(name);
+                    setRenameValue(name);
+                  }}
+                  title={`Load view: ${name} (right-click for color, double-click to rename)`}
+                >
+                  {v.color && <span className="timeline-view-chip-dot" style={{ backgroundColor: v.color }} />}
+                  {renamingView === name ? (
+                    <input
+                      className="timeline-view-chip-input"
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') renameView(); if (e.key === 'Escape') setRenamingView(null); }}
+                      onBlur={renameView}
+                      autoFocus
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : name}
+                  {isActive && (
+                    <span className="timeline-view-chip-x" onClick={e => {
+                      e.stopPropagation();
+                      setActiveViewName('');
+                      resetAll();
+                    }} title="Close view">&times;</span>
+                  )}
                 </button>
-                <button className="timeline-export-btn" onClick={exportGanttPNG} title="Export Gantt chart as PNG">
-                  Export PNG
-                </button>
-              </div>
-            </div>
+              );
+            })}
+            <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+            <button className="timeline-save-view-btn" onClick={() => {
+              if (activeViewName && savedViews[activeViewName]) {
+                updateView(activeViewName);
+              } else {
+                setShowViewsModal(true);
+                setNewViewName(activeViewName || '');
+              }
+            }} title={activeViewName && savedViews[activeViewName] ? 'Update current view' : 'Save current view'}>
+              {activeViewName && savedViews[activeViewName] ? 'Update View' : 'Save View'}
+            </button>
+            <button className="timeline-export-btn" onClick={exportGanttPNG} title="Export Gantt chart as PNG">
+              Export PNG
+            </button>
+          </div>
+        </div>
+        <div className="timeline-subheader">
+          {totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}
+        </div>
             {activeNames.length === 0 ? (
               <div className="timeline-empty">Select one or more components to view the timeline.</div>
             ) : (

@@ -20,13 +20,20 @@
   padding-left: 12px;
 }
 .timeline-header {
-  padding: 8px 0;
+  padding: 6px 0;
   font-size: 12px;
   color: #6B778C;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+.timeline-subheader {
+  padding: 0 0 6px 0;
+  font-size: 11px;
+  color: #97A0AF;
+  flex-shrink: 0;
 }
 .timeline-export-btn {
   padding: 3px 10px;
