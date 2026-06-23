@@ -352,8 +352,10 @@ function DateRangeSlider({ minDate, maxDate, dateFrom, dateTo, onFromChange, onT
 
 // ---- Views save/load modal ----
 
-function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onLoad, onDelete, onClose }) {
+function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onUpdate, onLoad, onDelete, onClose }) {
   const names = Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt);
+  const existingName = newViewName.trim();
+  const isUpdate = existingName && savedViews[existingName];
   return (
     <div className="views-modal-overlay" onClick={onClose}>
       <div className="views-modal" onClick={e => e.stopPropagation()}>
@@ -368,9 +370,13 @@ function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onLoad, onD
             placeholder="View name..."
             value={newViewName}
             onChange={e => onNameChange(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') onSave(); }}
+            onKeyDown={e => { if (e.key === 'Enter') isUpdate ? onUpdate(existingName) : onSave(); }}
           />
-          <button className="views-modal-save-btn" onClick={onSave} disabled={!newViewName.trim()}>Save</button>
+          {isUpdate ? (
+            <button className="views-modal-save-btn" onClick={() => onUpdate(existingName)}>Update</button>
+          ) : (
+            <button className="views-modal-save-btn" onClick={onSave} disabled={!existingName}>Save</button>
+          )}
         </div>
         {names.length > 0 && (
           <div className="views-modal-list">
@@ -384,6 +390,7 @@ function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onLoad, onD
                     <span className="views-modal-item-name">{name}</span>
                     <span className="views-modal-item-meta">{comps} component{comps !== 1 ? 's' : ''} &middot; {date}</span>
                   </div>
+                  <button className="views-modal-item-update-btn" onClick={() => onUpdate(name)} title="Update with current view">&#8634;</button>
                   <button className="views-modal-del-btn" onClick={() => onDelete(name)} title="Delete view">&times;</button>
                 </div>
               );
@@ -816,6 +823,7 @@ export default function Timeline({ onSelectIssue }) {
     try { return JSON.parse(localStorage.getItem('timeline_views') || '{}'); } catch { return {}; }
   });
   const [newViewName, setNewViewName] = useState('');
+  const [activeViewName, setActiveViewName] = useState('');
   const [saveToast, setSaveToast] = useState('');
 
   const currentViewState = useMemo(() => ({
@@ -862,8 +870,19 @@ export default function Timeline({ onSelectIssue }) {
       setHiddenComponents(f);
     }
     if (view.hideDone) setHideDone(true); else setHideDone(false);
+    setActiveViewName(name);
     setShowViewsModal(false);
   }, [savedViews, allComponents]);
+
+  const updateView = useCallback((name) => {
+    if (!name.trim()) return;
+    const views = { ...savedViews, [name.trim()]: { ...currentViewState, savedAt: Date.now() } };
+    persistViews(views);
+    setShowViewsModal(false);
+    setNewViewName('');
+    setSaveToast('View updated: ' + name.trim());
+    setTimeout(() => setSaveToast(''), 2000);
+  }, [currentViewState, savedViews, persistViews]);
 
   const deleteView = useCallback((name) => {
     const views = { ...savedViews };
@@ -1194,7 +1213,7 @@ export default function Timeline({ onSelectIssue }) {
                 title="Reset all filters"
               >Reset</button>
               <button
-                onClick={() => setShowViewsModal(true)}
+                onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }}
                 style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
                 title="Save & load views"
               >Views</button>
@@ -1391,6 +1410,7 @@ export default function Timeline({ onSelectIssue }) {
         newViewName={newViewName}
         onNameChange={setNewViewName}
         onSave={() => saveViewAs(newViewName)}
+        onUpdate={updateView}
         onLoad={loadView}
         onDelete={deleteView}
         onClose={() => { setShowViewsModal(false); setNewViewName(''); }}

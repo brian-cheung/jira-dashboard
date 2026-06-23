@@ -565,6 +565,17 @@
   margin-top: 2px;
   display: block;
 }
+.views-modal-item-update-btn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #C1C7D0;
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+  border-radius: 3px;
+}
+.views-modal-item-update-btn:hover { color: #0052CC; background: #DEEBFF; }
 .views-modal-del-btn {
   background: none;
   border: none;
