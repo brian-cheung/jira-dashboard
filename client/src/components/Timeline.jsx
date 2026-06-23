@@ -1394,13 +1394,9 @@ export default function Timeline({ onSelectIssue }) {
         </div>
       </div>
       <div className="timeline-main">
-        {activeNames.length === 0 ? (
-          <div className="timeline-empty">Select one or more components to view the timeline.</div>
-        ) : (
-          <>
-            <div className="timeline-header">
-              <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div className="timeline-header">
+          <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {/* View chips inline */}
                 {Object.keys(savedViews).length > 0 && (
                   <div className="timeline-view-chips">
@@ -1469,43 +1465,45 @@ export default function Timeline({ onSelectIssue }) {
                 </button>
               </div>
             </div>
-            <div className="timeline-gantt-wrap">
-              <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {/* Sticky group label overlay — sits on top of the scrollable area, doesn't scroll horizontally */}
-                {taskGroups.length > 0 && (
-                  <div style={{
-                    position: 'absolute', left: 0, right: 0, top: HEADER_HEIGHT, bottom: 0,
-                    zIndex: 10, overflow: 'hidden',
-                    background: 'transparent', pointerEvents: 'none',
-                  }} ref={overlayRef}>
-                    <div style={{ transform: `translateY(-${scrollTop}px)` }}>
-                      <GroupOverlay taskGroups={taskGroups} />
+            {activeNames.length === 0 ? (
+              <div className="timeline-empty">Select one or more components to view the timeline.</div>
+            ) : (
+              <div className="timeline-gantt-wrap">
+                <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {/* Sticky group label overlay — sits on top of the scrollable area, doesn't scroll horizontally */}
+                  {taskGroups.length > 0 && (
+                    <div style={{
+                      position: 'absolute', left: 0, right: 0, top: HEADER_HEIGHT, bottom: 0,
+                      zIndex: 10, overflow: 'hidden',
+                      background: 'transparent', pointerEvents: 'none',
+                    }} ref={overlayRef}>
+                      <div style={{ transform: `translateY(-${scrollTop}px)` }}>
+                        <GroupOverlay taskGroups={taskGroups} />
+                      </div>
                     </div>
-                  </div>
-                )}
-                <div className="timeline-gantt-hscroll" ref={hscrollRef}>
-                  <div className="timeline-gantt-inner">
-                    <div className="gantt-header">
-                      <GanttHeader months={months} years={years} totalWidth={totalWidth} todayX={todayX} />
-                    </div>
-                    <div className="timeline-gantt-body" ref={bodyRef}
-                      onScroll={(e) => setScrollTop(e.target.scrollTop)}>
-                      <GanttBody
-                        taskGroups={taskGroups}
-                        months={months}
-                        dateRange={dateRange}
-                        totalWidth={totalWidth}
-                        issueColors={issueColors}
-                        todayX={todayX}
-                        onSelectIssue={onSelectIssue}
-                      />
+                  )}
+                  <div className="timeline-gantt-hscroll" ref={hscrollRef}>
+                    <div className="timeline-gantt-inner">
+                      <div className="gantt-header">
+                        <GanttHeader months={months} years={years} totalWidth={totalWidth} todayX={todayX} />
+                      </div>
+                      <div className="timeline-gantt-body" ref={bodyRef}
+                        onScroll={(e) => setScrollTop(e.target.scrollTop)}>
+                        <GanttBody
+                          taskGroups={taskGroups}
+                          months={months}
+                          dateRange={dateRange}
+                          totalWidth={totalWidth}
+                          issueColors={issueColors}
+                          todayX={todayX}
+                          onSelectIssue={onSelectIssue}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
+            )}
       </div>
     </div>
     {showViewsModal && (
