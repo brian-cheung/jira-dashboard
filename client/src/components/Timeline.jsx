@@ -350,6 +350,51 @@ function DateRangeSlider({ minDate, maxDate, dateFrom, dateTo, onFromChange, onT
   );
 }
 
+// ---- Views save/load modal ----
+
+function ViewsModal({ savedViews, newViewName, onNameChange, onSave, onLoad, onDelete, onClose }) {
+  const names = Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt);
+  return (
+    <div className="views-modal-overlay" onClick={onClose}>
+      <div className="views-modal" onClick={e => e.stopPropagation()}>
+        <div className="views-modal-header">
+          <span>Saved Views</span>
+          <button className="views-modal-close" onClick={onClose}>&times;</button>
+        </div>
+        <div className="views-modal-save-row">
+          <input
+            type="text"
+            className="views-modal-input"
+            placeholder="View name..."
+            value={newViewName}
+            onChange={e => onNameChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') onSave(); }}
+          />
+          <button className="views-modal-save-btn" onClick={onSave} disabled={!newViewName.trim()}>Save</button>
+        </div>
+        {names.length > 0 && (
+          <div className="views-modal-list">
+            {names.map(name => {
+              const v = savedViews[name];
+              const comps = v.selectedComponents ? Object.values(v.selectedComponents).filter(Boolean).length : 0;
+              const date = v.savedAt ? new Date(v.savedAt).toLocaleString() : '';
+              return (
+                <div key={name} className="views-modal-item">
+                  <div className="views-modal-item-info" onClick={() => onLoad(name)} title="Click to load">
+                    <span className="views-modal-item-name">{name}</span>
+                    <span className="views-modal-item-meta">{comps} component{comps !== 1 ? 's' : ''} &middot; {date}</span>
+                  </div>
+                  <button className="views-modal-del-btn" onClick={() => onDelete(name)} title="Delete view">&times;</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---- Main Timeline component ----
 
 export default function Timeline({ onSelectIssue }) {
@@ -766,52 +811,96 @@ export default function Timeline({ onSelectIssue }) {
     });
   }, []);
 
-  const saveView = useCallback(() => {
-    const view = {
-      selectedComponents,
-      expandedComponents: {}, // Don't save expanded state
-      componentOrder,
-      statusFilter,
-      dateFrom,
-      dateTo,
-      hiddenComponents,
-      hideDone,
-    };
-    localStorage.setItem('timeline_view', JSON.stringify(view));
-  }, [selectedComponents, componentOrder, statusFilter, dateFrom, dateTo, hiddenComponents, hideDone]);
+  const [showViewsModal, setShowViewsModal] = useState(false);
+  const [savedViews, setSavedViews] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('timeline_views') || '{}'); } catch { return {}; }
+  });
+  const [newViewName, setNewViewName] = useState('');
+  const [saveToast, setSaveToast] = useState('');
 
-  // Restore saved view on mount (after issues load)
+  const currentViewState = useMemo(() => ({
+    selectedComponents,
+    componentOrder,
+    statusFilter,
+    dateFrom,
+    dateTo,
+    hiddenComponents,
+    hideDone,
+  }), [selectedComponents, componentOrder, statusFilter, dateFrom, dateTo, hiddenComponents, hideDone]);
+
+  const persistViews = useCallback((views) => {
+    localStorage.setItem('timeline_views', JSON.stringify(views));
+    setSavedViews(views);
+  }, []);
+
+  const saveViewAs = useCallback((name) => {
+    if (!name.trim()) return;
+    const views = { ...savedViews, [name.trim()]: { ...currentViewState, savedAt: Date.now() } };
+    persistViews(views);
+    setShowViewsModal(false);
+    setNewViewName('');
+    setSaveToast('View saved: ' + name.trim());
+    setTimeout(() => setSaveToast(''), 2000);
+  }, [currentViewState, savedViews, persistViews]);
+
+  const loadView = useCallback((name) => {
+    const view = savedViews[name];
+    if (!view) return;
+    const avail = new Set(allComponents.map(c => c.name));
+    if (view.selectedComponents) {
+      const f = {};
+      for (const [k, v] of Object.entries(view.selectedComponents)) { if (v && avail.has(k)) f[k] = true; }
+      setSelectedComponents(f);
+    }
+    if (view.componentOrder) setComponentOrder(view.componentOrder.filter(n => avail.has(n)));
+    if (view.statusFilter) setStatusFilter(view.statusFilter);
+    if (view.dateFrom) setDateFrom(view.dateFrom);
+    if (view.dateTo) setDateTo(view.dateTo);
+    if (view.hiddenComponents) {
+      const f = {};
+      for (const [k, v] of Object.entries(view.hiddenComponents)) { if (v && avail.has(k)) f[k] = true; }
+      setHiddenComponents(f);
+    }
+    if (view.hideDone) setHideDone(true); else setHideDone(false);
+    setShowViewsModal(false);
+  }, [savedViews, allComponents]);
+
+  const deleteView = useCallback((name) => {
+    const views = { ...savedViews };
+    delete views[name];
+    persistViews(views);
+  }, [savedViews, persistViews]);
+
+  // Auto-restore most recent view on mount
   useEffect(() => {
     if (issues.length === 0) return;
     try {
-      const raw = localStorage.getItem('timeline_view');
+      const raw = localStorage.getItem('timeline_views');
       if (!raw) return;
-      const view = JSON.parse(raw);
-      // Filter saved selections against currently available components
+      const views = JSON.parse(raw);
+      const names = Object.keys(views);
+      if (names.length === 0) return;
+      // Only auto-restore if there's exactly one view (most-recent heuristic)
+      // Otherwise user picks from the modal
+      const mostRecent = names.reduce((a, b) => views[a].savedAt > views[b].savedAt ? a : b);
+      const view = views[mostRecent];
       const avail = new Set(allComponents.map(c => c.name));
       if (view.selectedComponents) {
-        const filtered = {};
-        for (const [k, v] of Object.entries(view.selectedComponents)) {
-          if (v && avail.has(k)) filtered[k] = true;
-        }
-        if (Object.keys(filtered).length > 0) setSelectedComponents(filtered);
+        const f = {};
+        for (const [k, v] of Object.entries(view.selectedComponents)) { if (v && avail.has(k)) f[k] = true; }
+        if (Object.keys(f).length > 0) setSelectedComponents(f);
       }
-      if (view.componentOrder) {
-        const filtered = view.componentOrder.filter(n => avail.has(n));
-        if (filtered.length > 0) setComponentOrder(filtered);
-      }
+      if (view.componentOrder) setComponentOrder(view.componentOrder.filter(n => avail.has(n)));
       if (view.statusFilter) setStatusFilter(view.statusFilter);
       if (view.dateFrom) setDateFrom(view.dateFrom);
       if (view.dateTo) setDateTo(view.dateTo);
       if (view.hiddenComponents) {
-        const filtered = {};
-        for (const [k, v] of Object.entries(view.hiddenComponents)) {
-          if (v && avail.has(k)) filtered[k] = true;
-        }
-        if (Object.keys(filtered).length > 0) setHiddenComponents(filtered);
+        const f = {};
+        for (const [k, v] of Object.entries(view.hiddenComponents)) { if (v && avail.has(k)) f[k] = true; }
+        setHiddenComponents(f);
       }
       if (view.hideDone) setHideDone(true);
-    } catch (e) { /* ignore corrupt data */ }
+    } catch (e) { /* ignore */ }
   }, [issues.length === 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unhideAll = useCallback(() => {
@@ -820,13 +909,13 @@ export default function Timeline({ onSelectIssue }) {
 
   const resetAll = useCallback(() => {
     setSearch('');
+    setSelectedComponents({});
     setStatusFilter({});
     setDateFrom('');
     setDateTo('');
     setHiddenComponents({});
     setHideDone(false);
     setComponentOrder([]);
-    localStorage.removeItem('timeline_view');
   }, []);
 
   const hiddenCount = Object.values(hiddenComponents).filter(Boolean).length;
@@ -1077,6 +1166,7 @@ export default function Timeline({ onSelectIssue }) {
   if (error) return <div className="timeline-empty" style={{ color: '#DE350B' }}>Failed: {error}</div>;
 
   return (
+    <>
     <div className="timeline-layout">
       <div className="timeline-sidebar">
         <div className="filter-section">
@@ -1104,10 +1194,10 @@ export default function Timeline({ onSelectIssue }) {
                 title="Reset all filters"
               >Reset</button>
               <button
-                onClick={saveView}
+                onClick={() => setShowViewsModal(true)}
                 style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
-                title="Save current view for next visit"
-              >Save</button>
+                title="Save & load views"
+              >Views</button>
             </div>
           </div>
           <div className="timeline-search-wrap">
@@ -1295,5 +1385,18 @@ export default function Timeline({ onSelectIssue }) {
         )}
       </div>
     </div>
+    {showViewsModal && (
+      <ViewsModal
+        savedViews={savedViews}
+        newViewName={newViewName}
+        onNameChange={setNewViewName}
+        onSave={() => saveViewAs(newViewName)}
+        onLoad={loadView}
+        onDelete={deleteView}
+        onClose={() => { setShowViewsModal(false); setNewViewName(''); }}
+      />
+    )}
+    {saveToast && <div className="timeline-toast">{saveToast}</div>}
+    </>
   );
 }
