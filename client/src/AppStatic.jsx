@@ -443,7 +443,8 @@ export default function AppStatic() {
     }
   }, []);
 
-  if (!config) {
+  // Bypass auth for shared Timeline views (embedded data in URL)
+  if (!config && !window.location.hash.startsWith('#timeline&view=')) {
     return <ConfigScreen onConfigured={(cfg) => { setConfig(cfg); setTimeout(() => doSync(false), 100); }} />;
   }
 
