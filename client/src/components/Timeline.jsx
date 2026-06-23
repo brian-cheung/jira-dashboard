@@ -1445,7 +1445,7 @@ export default function Timeline({ onSelectIssue }) {
             })}
             <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
             <button className="timeline-save-view-btn" onClick={() => {
               if (activeViewName && savedViews[activeViewName]) {
                 updateView(activeViewName);
