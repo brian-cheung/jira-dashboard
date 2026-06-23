@@ -897,7 +897,7 @@ export default function Timeline({ onSelectIssue }) {
   const updateView = useCallback((name) => {
     if (!name.trim()) return;
     const existing = savedViews[name.trim()];
-    const views = { ...savedViews, [name.trim()]: { ...currentViewState, color: viewColor !== existing?.color ? viewColor : existing?.color || viewColor, savedAt: Date.now() } };
+    const views = { ...savedViews, [name.trim()]: { ...currentViewState, color: existing?.color || viewColor, savedAt: Date.now() } };
     persistViews(views);
     setActiveViewName(name.trim());
     setShowViewsModal(false);
