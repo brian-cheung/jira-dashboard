@@ -444,6 +444,27 @@ export default function Timeline({ onSelectIssue }) {
   const [scrollTop, setScrollTop] = useState(0);
 
   useEffect(() => {
+    // Skip JIRA fetch if view data is embedded in URL hash
+    if (window.location.hash.includes('view=')) {
+      try {
+        const match = window.location.hash.match(/view=([^&]+)/);
+        if (match) {
+          const json = decodeURIComponent(escape(atob(match[1])));
+          const view = JSON.parse(json);
+          if (view.d && view.d.length > 0) {
+            const parsed = view.d.map(d => ({
+              key: d.k, summary: d.s, start_date: d.st, due_date: d.ed,
+              status_category: d.sc, status: d.sc,
+              components: (d.c || []).map(name => ({ id: name, name })),
+              issue_type: '',
+            }));
+            setIssues(parsed);
+            setLoading(false);
+            return; // Don't fetch from JIRA
+          }
+        }
+      } catch (e) { /* fall through to JIRA fetch */ }
+    }
     const jql = 'project = DEV1 AND component is not EMPTY ORDER BY created DESC';
     searchIssuesAll(jql).then(raw => {
       setIssues(raw.map(parseTimelineIssue));
@@ -990,7 +1011,23 @@ export default function Timeline({ onSelectIssue }) {
     } else {
       state = currentViewState;
     }
-    // Only include shareable keys
+    // Compact issue data for offline sharing
+    const issueData = [];
+    for (const g of taskGroups) {
+      for (const t of g.tasks) {
+        const issue = issues.find(i => i.key === t.id);
+        if (issue) {
+          issueData.push({
+            k: issue.key,
+            s: issue.summary,
+            st: issue.start_date,
+            ed: issue.due_date,
+            sc: issue.status_category,
+            c: (issue.components || []).map(c => c.name),
+          });
+        }
+      }
+    }
     const share = {
       selectedComponents: state.selectedComponents,
       statusFilter: state.statusFilter,
@@ -998,6 +1035,7 @@ export default function Timeline({ onSelectIssue }) {
       dateTo: state.dateTo,
       hideDone: state.hideDone,
       componentOrder: state.componentOrder,
+      d: issueData,
     };
     const json = JSON.stringify(share);
     const encoded = btoa(unescape(encodeURIComponent(json)));
@@ -1011,9 +1049,9 @@ export default function Timeline({ onSelectIssue }) {
     });
   }, [currentViewState, activeViewName, savedViews]);
 
-  // Restore view from URL hash on mount
+  // Restore view from URL hash when component data is available
   useEffect(() => {
-    if (issues.length === 0) return;
+    if (allComponents.length === 0) return;
     const hash = window.location.hash;
     const match = hash.match(/view=([^&]+)/);
     if (!match) return;
@@ -1033,7 +1071,7 @@ export default function Timeline({ onSelectIssue }) {
       if (view.dateTo) setDateTo(view.dateTo);
       if (view.hideDone) setHideDone(true);
     } catch (e) { /* ignore */ }
-  }, [issues.length === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allComponents.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportGanttPNG = useCallback(() => {
     const headerSvg = document.querySelector('.gantt-header svg');
