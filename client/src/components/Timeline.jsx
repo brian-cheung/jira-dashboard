@@ -1485,13 +1485,6 @@ export default function Timeline({ onSelectIssue }) {
                       onClick={e => e.stopPropagation()}
                     />
                   ) : name}
-                  {isActive && (
-                    <span className="timeline-view-chip-x" onClick={e => {
-                      e.stopPropagation();
-                      setActiveViewName('');
-                      resetAll();
-                    }} title="Close view">&times;</span>
-                  )}
                 </button>
               );
             })}
@@ -1582,14 +1575,21 @@ export default function Timeline({ onSelectIssue }) {
     {chipContextMenu && (
       <div className="chip-color-menu-overlay" onClick={() => setChipContextMenu(null)}>
         <div className="chip-color-menu" style={{ left: chipContextMenu.x, top: chipContextMenu.y }}>
-          {CHIP_COLORS.map(c => (
-            <span
-              key={c}
-              className={`chip-color-menu-dot${savedViews[chipContextMenu.name]?.color === c ? ' selected' : ''}`}
-              style={{ backgroundColor: c }}
-              onClick={() => changeChipColor(chipContextMenu.name, c)}
-            />
-          ))}
+          <div className="chip-color-menu-row">
+            {CHIP_COLORS.map(c => (
+              <span
+                key={c}
+                className={`chip-color-menu-dot${savedViews[chipContextMenu.name]?.color === c ? ' selected' : ''}`}
+                style={{ backgroundColor: c }}
+                onClick={() => changeChipColor(chipContextMenu.name, c)}
+              />
+            ))}
+          </div>
+          <div className="chip-color-menu-divider" />
+          <button className="chip-color-menu-delete" onClick={() => {
+            deleteView(chipContextMenu.name);
+            if (activeViewName === chipContextMenu.name) setActiveViewName('');
+          }}>Delete</button>
         </div>
       </div>
     )}

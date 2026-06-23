@@ -138,24 +138,6 @@
   outline: none;
   background: #fff;
 }
-.timeline-view-chip-x {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  font-size: 10px;
-  color: inherit;
-  opacity: 0.6;
-  margin-left: 2px;
-}
-.timeline-view-chip-x:hover {
-  opacity: 1;
-  background: rgba(0,0,0,0.1);
-}
-
-/* Color picker in modal */
 .views-modal-colors {
   display: flex;
   gap: 4px;
@@ -751,13 +733,37 @@
 .chip-color-menu {
   position: fixed;
   display: flex;
-  gap: 4px;
+  flex-direction: column;
+  gap: 0;
   padding: 6px 8px;
   background: #fff;
   border: 1px solid #DFE1E6;
   border-radius: 6px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   transform: translate(8px, 8px);
+}
+.chip-color-menu-row {
+  display: flex;
+  gap: 4px;
+}
+.chip-color-menu-divider {
+  height: 1px;
+  background: #DFE1E6;
+  margin: 6px 0;
+}
+.chip-color-menu-delete {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: #DE350B;
+  cursor: pointer;
+  padding: 4px 2px;
+  text-align: left;
+  border-radius: 3px;
+  font-family: inherit;
+}
+.chip-color-menu-delete:hover {
+  background: #FFEBE6;
 }
 .chip-color-menu-dot {
   width: 20px;
