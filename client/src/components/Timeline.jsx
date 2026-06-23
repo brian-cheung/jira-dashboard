@@ -453,11 +453,11 @@ export default function Timeline({ onSelectIssue }) {
           const view = JSON.parse(json);
           if (view.d && view.d.length > 0) {
             const parsed = view.d.map(d => ({
-              key: d.k, summary: d.s, start_date: d.st, due_date: d.ed,
-              status_category: d.sc, status: d.sc,
+              key: d.k || d.j || '', summary: d.s || '', start_date: d.st || null, due_date: d.ed || null,
+              status_category: d.sc || '', status: d.sc || '',
               components: (d.c || []).map(name => ({ id: name, name })),
               issue_type: '',
-            }));
+            })).filter(d => d.key);
             setIssues(parsed);
             setLoading(false);
             return; // Don't fetch from JIRA
@@ -1016,7 +1016,7 @@ export default function Timeline({ onSelectIssue }) {
     for (const g of taskGroups) {
       for (const t of g.tasks) {
         const issue = issues.find(i => i.key === t.id);
-        if (issue) {
+        if (issue && issue.start_date && issue.due_date) {
           issueData.push({
             k: issue.key,
             s: issue.summary,
@@ -1496,8 +1496,8 @@ export default function Timeline({ onSelectIssue }) {
                   className={`timeline-view-chip${isActive ? ' active' : ''}`}
                   style={v.color ? {
                     borderColor: v.color,
-                    color: isActive ? v.color : undefined,
-                    background: isActive ? v.color + '18' : undefined,
+                    color: v.color,
+                    background: isActive ? v.color + '22' : v.color + '10',
                   } : {}}
                   onClick={() => loadView(name)}
                   onContextMenu={e => {

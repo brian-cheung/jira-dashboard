@@ -480,6 +480,7 @@ export default function AppStatic() {
 
   return (
     <div className="app">
+      {!window.location.hash.startsWith('#timeline') && (
       <header className="app-header">
         <h1>JIRA Dashboard</h1>
         <div className="header-actions">
@@ -491,12 +492,15 @@ export default function AppStatic() {
 
         </div>
       </header>
+      )}
+      {!window.location.hash.startsWith('#timeline') && (
       <div className="app-tabs">
         <button className={`app-tab ${tab === 'tickets' ? 'active' : ''}`} onClick={() => setTab('tickets')}>Tickets</button>
         <button className={`app-tab ${tab === 'metrics' ? 'active' : ''}`} onClick={() => setTab('metrics')}>Metrics</button>
         <button className={`app-tab ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}>Timeline</button>
         <button className={`app-tab ${tab === 'setup' ? 'active' : ''}`} onClick={() => setTab('setup')}>Setup</button>
       </div>
+      )}
       <div className="app-main">
         {tab !== 'timeline' && (
           <div className="app-sidebar">
