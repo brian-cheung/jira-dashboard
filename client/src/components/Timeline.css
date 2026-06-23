@@ -705,6 +705,38 @@
   pointer-events: none;
   animation: toast-in 0.2s ease;
 }
+/* Right-click chip color menu */
+.chip-color-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+}
+.chip-color-menu {
+  position: fixed;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid #DFE1E6;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transform: translate(8px, 8px);
+}
+.chip-color-menu-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s;
+}
+.chip-color-menu-dot:hover {
+  transform: scale(1.2);
+}
+.chip-color-menu-dot.selected {
+  border-color: #172B4D;
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(-50%) translateY(8px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }

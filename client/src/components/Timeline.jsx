@@ -842,6 +842,7 @@ export default function Timeline({ onSelectIssue }) {
   const [newViewName, setNewViewName] = useState('');
   const [activeViewName, setActiveViewName] = useState('');
   const [viewColor, setViewColor] = useState(CHIP_COLORS[0]);
+  const [chipContextMenu, setChipContextMenu] = useState(null);
   const [saveToast, setSaveToast] = useState('');
 
   const currentViewState = useMemo(() => ({
@@ -904,6 +905,13 @@ export default function Timeline({ onSelectIssue }) {
     setSaveToast('View updated: ' + name.trim());
     setTimeout(() => setSaveToast(''), 2000);
   }, [currentViewState, savedViews, persistViews, viewColor]);
+
+  const changeChipColor = useCallback((name, color) => {
+    const views = { ...savedViews };
+    if (views[name]) { views[name] = { ...views[name], color }; }
+    persistViews(views);
+    setChipContextMenu(null);
+  }, [savedViews, persistViews]);
 
   const deleteView = useCallback((name) => {
     const views = { ...savedViews };
@@ -1233,11 +1241,6 @@ export default function Timeline({ onSelectIssue }) {
                 style={{ background: 'none', border: 'none', fontSize: 10, color: '#6B778C', cursor: 'pointer', padding: '2px 4px' }}
                 title="Reset all filters"
               >Reset</button>
-              <button
-                onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }}
-                style={{ background: 'none', border: 'none', fontSize: 10, color: '#0052CC', cursor: 'pointer', padding: '2px 4px' }}
-                title="Save & load views"
-              >Views</button>
             </div>
           </div>
           <div className="timeline-search-wrap">
@@ -1381,7 +1384,46 @@ export default function Timeline({ onSelectIssue }) {
         ) : (
           <>
             <div className="timeline-header">
+              <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {/* View chips inline */}
+                {Object.keys(savedViews).length > 0 && (
+                  <div className="timeline-view-chips">
+                    {Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
+                      const v = savedViews[name];
+                      const isActive = name === activeViewName;
+                      return (
+                        <button
+                          key={name}
+                          className={`timeline-view-chip${isActive ? ' active' : ''}`}
+                          style={v.color ? {
+                            borderColor: v.color,
+                            color: isActive ? v.color : undefined,
+                            background: isActive ? v.color + '18' : undefined,
+                          } : {}}
+                          onClick={() => loadView(name)}
+                          onContextMenu={e => {
+                            e.preventDefault();
+                            const menu = { name, x: e.clientX, y: e.clientY };
+                            setChipContextMenu(menu);
+                          }}
+                          title={`Load view: ${name} (right-click for color)`}
+                        >
+                          {v.color && <span className="timeline-view-chip-dot" style={{ backgroundColor: v.color }} />}
+                          {name}
+                          {isActive && (
+                            <span className="timeline-view-chip-x" onClick={e => {
+                              e.stopPropagation();
+                              setActiveViewName('');
+                              resetAll();
+                            }} title="Close view">&times;</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                    <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
+                  </div>
+                )}
                 <button className="timeline-save-view-btn" onClick={() => {
                   if (activeViewName && savedViews[activeViewName]) {
                     updateView(activeViewName);
@@ -1396,37 +1438,7 @@ export default function Timeline({ onSelectIssue }) {
                   Export PNG
                 </button>
               </div>
-              <span>{totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}</span>
             </div>
-            {/* View chips for quick switching */}
-            {Object.keys(savedViews).length > 0 && (
-              <div className="timeline-view-chips">
-                {Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
-                  const v = savedViews[name];
-                  const isActive = name === activeViewName;
-                  return (
-                    <button
-                      key={name}
-                      className={`timeline-view-chip${isActive ? ' active' : ''}`}
-                      style={v.color ? { borderColor: v.color, background: isActive ? v.color + '18' : undefined } : {}}
-                      onClick={() => loadView(name)}
-                      title={`Load view: ${name}`}
-                    >
-                      {v.color && <span className="timeline-view-chip-dot" style={{ backgroundColor: v.color }} />}
-                      {name}
-                      {isActive && (
-                        <span className="timeline-view-chip-x" onClick={e => {
-                          e.stopPropagation();
-                          setActiveViewName('');
-                          resetAll();
-                        }} title="Close view">&times;</span>
-                      )}
-                    </button>
-                  );
-                })}
-                <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
-              </div>
-            )}
             <div className="timeline-gantt-wrap">
               <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* Sticky group label overlay — sits on top of the scrollable area, doesn't scroll horizontally */}
@@ -1481,6 +1493,20 @@ export default function Timeline({ onSelectIssue }) {
       />
     )}
     {saveToast && <div className="timeline-toast">{saveToast}</div>}
+    {chipContextMenu && (
+      <div className="chip-color-menu-overlay" onClick={() => setChipContextMenu(null)}>
+        <div className="chip-color-menu" style={{ left: chipContextMenu.x, top: chipContextMenu.y }}>
+          {CHIP_COLORS.map(c => (
+            <span
+              key={c}
+              className={`chip-color-menu-dot${savedViews[chipContextMenu.name]?.color === c ? ' selected' : ''}`}
+              style={{ backgroundColor: c }}
+              onClick={() => changeChipColor(chipContextMenu.name, c)}
+            />
+          ))}
+        </div>
+      </div>
+    )}
     </>
   );
 }
