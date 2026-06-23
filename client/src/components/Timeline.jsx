@@ -352,7 +352,7 @@ function DateRangeSlider({ minDate, maxDate, dateFrom, dateTo, onFromChange, onT
 
 // ---- Views save/load modal ----
 
-const CHIP_COLORS = ['#0052CC', '#E67E22', '#8E44AD', '#2ECC71', '#E74C3C', '#1ABC9C', '#F39C12', '#E91E63'];
+const CHIP_COLORS = ['#E81416','#FF7F00','#FFD700','#2ECC40','#00BFFF','#1E90FF','#8A2BE2','#FF69B4','#FF4500','#7FFF00','#00CED1','#FF1493'];
 
 function ViewsModal({ savedViews, newViewName, viewColor, onNameChange, onColorChange, onSave, onUpdate, onLoad, onDelete, onClose }) {
   const names = Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt);
@@ -1395,6 +1395,7 @@ export default function Timeline({ onSelectIssue }) {
       </div>
       <div className="timeline-main">
         <div className="timeline-header">
+          <div className="timeline-header-left">
           <div className="timeline-view-chips">
             {Object.keys(savedViews).length > 0 && Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
               const v = savedViews[name];
@@ -1443,7 +1444,11 @@ export default function Timeline({ onSelectIssue }) {
                 </button>
               );
             })}
-            <button className="timeline-view-chip timeline-view-chip-more" onClick={() => { setShowViewsModal(true); setNewViewName(activeViewName); }} title="Manage views">+</button>
+            <button className="timeline-view-chip timeline-view-chip-more" onClick={() => {
+              const name = 'View ' + (Object.keys(savedViews).length + 1);
+              saveViewAs(name);
+            }} title="Quick save view">+</button>
+          </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
             <button className="timeline-save-view-btn" onClick={() => {
