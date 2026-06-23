@@ -372,8 +372,9 @@ export default function AppStatic() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState({});
   const [search, setSearch] = useState('');
+  const isSharedTimeline = window.location.hash.startsWith('#timeline&view=');
   const [tab, setTab] = useState(() => {
-    if (window.location.hash.startsWith('#timeline')) return 'timeline';
+    if (isSharedTimeline || window.location.hash.startsWith('#timeline')) return 'timeline';
     return 'tickets';
   });
   const [showCreate, setShowCreate] = useState(false);
@@ -444,7 +445,7 @@ export default function AppStatic() {
   }, []);
 
   // Bypass auth for shared Timeline views (embedded data in URL)
-  if (!config && !window.location.hash.startsWith('#timeline&view=')) {
+  if (!config && !isSharedTimeline) {
     return <ConfigScreen onConfigured={(cfg) => { setConfig(cfg); setTimeout(() => doSync(false), 100); }} />;
   }
 
@@ -481,7 +482,7 @@ export default function AppStatic() {
 
   return (
     <div className="app">
-      {!window.location.hash.startsWith('#timeline') && (
+      {!isSharedTimeline && (
       <header className="app-header">
         <h1>JIRA Dashboard</h1>
         <div className="header-actions">
@@ -494,7 +495,7 @@ export default function AppStatic() {
         </div>
       </header>
       )}
-      {!window.location.hash.startsWith('#timeline') && (
+      {!isSharedTimeline && (
       <div className="app-tabs">
         <button className={`app-tab ${tab === 'tickets' ? 'active' : ''}`} onClick={() => setTab('tickets')}>Tickets</button>
         <button className={`app-tab ${tab === 'metrics' ? 'active' : ''}`} onClick={() => setTab('metrics')}>Metrics</button>
@@ -659,8 +660,8 @@ export default function AppStatic() {
             <div className="setup">
               <div className="setup-section">
                 <h3>Current JQL</h3>
-                <textarea className="setup-jql-input" value={config.jql || ''} onChange={e => {
-                  const newCfg = { ...config, jql: e.target.value };
+                <textarea className="setup-jql-input" value={config?.jql || ''} onChange={e => {
+                  const newCfg = { ...(config || {}), jql: e.target.value };
                   localStorage.setItem('jira_config', JSON.stringify(newCfg));
                   setConfig(newCfg);
                 }} rows={4} spellCheck={false} placeholder="Leave blank for default" />
