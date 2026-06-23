@@ -57,6 +57,20 @@
   border-color: #0052CC;
   color: #0052CC;
 }
+.timeline-share-btn {
+  padding: 3px 10px;
+  font-size: 10px;
+  font-family: inherit;
+  background: #fff;
+  border: 1px solid #2ECC40;
+  border-radius: 4px;
+  color: #2ECC40;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.timeline-share-btn:hover {
+  background: #E3FCEF;
+}
 .timeline-save-view-btn {
   padding: 3px 10px;
   font-size: 10px;

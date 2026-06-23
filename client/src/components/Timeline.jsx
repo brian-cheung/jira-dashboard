@@ -983,6 +983,43 @@ export default function Timeline({ onSelectIssue }) {
 
   const hiddenCount = Object.values(hiddenComponents).filter(Boolean).length;
 
+  const shareView = useCallback(() => {
+    const state = { selectedComponents, statusFilter, dateFrom, dateTo, hideDone, componentOrder };
+    const json = JSON.stringify(state);
+    const encoded = btoa(unescape(encodeURIComponent(json)));
+    const url = window.location.origin + window.location.pathname + '#view=' + encoded;
+    navigator.clipboard.writeText(url).then(() => {
+      setSaveToast('Share link copied!');
+      setTimeout(() => setSaveToast(''), 2000);
+    }).catch(() => {
+      setSaveToast('Failed to copy link');
+      setTimeout(() => setSaveToast(''), 2000);
+    });
+  }, [currentViewState]);
+
+  // Restore view from URL hash on mount
+  useEffect(() => {
+    if (issues.length === 0) return;
+    const hash = window.location.hash;
+    if (!hash.startsWith('#view=')) return;
+    try {
+      const encoded = hash.slice(6);
+      const json = decodeURIComponent(escape(atob(encoded)));
+      const view = JSON.parse(json);
+      const avail = new Set(allComponents.map(c => c.name));
+      if (view.selectedComponents) {
+        const f = {};
+        for (const [k, v] of Object.entries(view.selectedComponents)) { if (v && avail.has(k)) f[k] = true; }
+        if (Object.keys(f).length > 0) setSelectedComponents(f);
+      }
+      if (view.componentOrder) setComponentOrder(view.componentOrder.filter(n => avail.has(n)));
+      if (view.statusFilter) setStatusFilter(view.statusFilter);
+      if (view.dateFrom) setDateFrom(view.dateFrom);
+      if (view.dateTo) setDateTo(view.dateTo);
+      if (view.hideDone) setHideDone(true);
+    } catch (e) { /* ignore */ }
+  }, [issues.length === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const exportGanttPNG = useCallback(() => {
     const headerSvg = document.querySelector('.gantt-header svg');
     const bodySvg = document.querySelector('.timeline-gantt-body svg');
@@ -1463,6 +1500,9 @@ export default function Timeline({ onSelectIssue }) {
             </button>
             <button className="timeline-export-btn" onClick={exportGanttPNG} title="Export Gantt chart as PNG">
               Export PNG
+            </button>
+            <button className="timeline-share-btn" onClick={shareView} title="Copy shareable link">
+              Share
             </button>
           </div>
         </div>
