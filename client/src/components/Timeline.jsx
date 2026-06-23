@@ -1002,6 +1002,7 @@ export default function Timeline({ onSelectIssue }) {
     setComponentOrder([]);
   }, []);
 
+  const isSharedView = window.location.hash.startsWith('#timeline&view=');
   const hiddenCount = Object.values(hiddenComponents).filter(Boolean).length;
 
   const shareView = useCallback(() => {
@@ -1487,7 +1488,7 @@ export default function Timeline({ onSelectIssue }) {
         <div className="timeline-header">
           <div className="timeline-header-left">
           <div className="timeline-view-chips">
-            {Object.keys(savedViews).length > 0 && Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
+            {!isSharedView && Object.keys(savedViews).length > 0 && Object.keys(savedViews).sort((a, b) => savedViews[b].savedAt - savedViews[a].savedAt).map(name => {
               const v = savedViews[name];
               const isActive = name === activeViewName;
               return (
@@ -1527,13 +1528,13 @@ export default function Timeline({ onSelectIssue }) {
                 </button>
               );
             })}
-            <button className="timeline-view-chip timeline-view-chip-more" onClick={() => {
+            {!isSharedView && <button className="timeline-view-chip timeline-view-chip-more" onClick={() => {
               const name = 'View ' + (Object.keys(savedViews).length + 1);
               saveViewAs(name);
-            }} title="Quick save view">+</button>
+            }} title="Quick save view">+</button>}
           </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
+          {!isSharedView && <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
             <button className="timeline-save-view-btn" onClick={() => {
               if (activeViewName && savedViews[activeViewName]) {
                 updateView(activeViewName);
@@ -1551,6 +1552,7 @@ export default function Timeline({ onSelectIssue }) {
               Share
             </button>
           </div>
+          }
         </div>
         <div className="timeline-subheader">
           {totalTaskCount} item{totalTaskCount !== 1 ? 's' : ''} across {taskGroups.length} component{taskGroups.length !== 1 ? 's' : ''}
