@@ -843,6 +843,8 @@ export default function Timeline({ onSelectIssue }) {
   const [activeViewName, setActiveViewName] = useState('');
   const [viewColor, setViewColor] = useState(CHIP_COLORS[0]);
   const [chipContextMenu, setChipContextMenu] = useState(null);
+  const [renamingView, setRenamingView] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
   const [saveToast, setSaveToast] = useState('');
 
   const currentViewState = useMemo(() => ({
@@ -912,6 +914,19 @@ export default function Timeline({ onSelectIssue }) {
     persistViews(views);
     setChipContextMenu(null);
   }, [savedViews, persistViews]);
+
+  const renameView = useCallback(() => {
+    if (!renamingView || !renameValue.trim() || renameValue.trim() === renamingView) {
+      setRenamingView(null);
+      return;
+    }
+    const views = { ...savedViews };
+    views[renameValue.trim()] = views[renamingView];
+    delete views[renamingView];
+    persistViews(views);
+    if (activeViewName === renamingView) setActiveViewName(renameValue.trim());
+    setRenamingView(null);
+  }, [renamingView, renameValue, savedViews, persistViews, activeViewName]);
 
   const deleteView = useCallback((name) => {
     const views = { ...savedViews };
@@ -1407,10 +1422,25 @@ export default function Timeline({ onSelectIssue }) {
                             const menu = { name, x: e.clientX, y: e.clientY };
                             setChipContextMenu(menu);
                           }}
-                          title={`Load view: ${name} (right-click for color)`}
+                          onDoubleClick={e => {
+                            e.stopPropagation();
+                            setRenamingView(name);
+                            setRenameValue(name);
+                          }}
+                          title={`Load view: ${name} (right-click for color, double-click to rename)`}
                         >
                           {v.color && <span className="timeline-view-chip-dot" style={{ backgroundColor: v.color }} />}
-                          {name}
+                          {renamingView === name ? (
+                            <input
+                              className="timeline-view-chip-input"
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') renameView(); if (e.key === 'Escape') setRenamingView(null); }}
+                              onBlur={renameView}
+                              autoFocus
+                              onClick={e => e.stopPropagation()}
+                            />
+                          ) : name}
                           {isActive && (
                             <span className="timeline-view-chip-x" onClick={e => {
                               e.stopPropagation();

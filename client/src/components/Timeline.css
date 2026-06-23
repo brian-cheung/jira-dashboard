@@ -101,6 +101,16 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
+.timeline-view-chip-input {
+  width: 80px;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-family: inherit;
+  border: 1px solid #0052CC;
+  border-radius: 3px;
+  outline: none;
+  background: #fff;
+}
 .timeline-view-chip-x {
   display: inline-flex;
   align-items: center;
